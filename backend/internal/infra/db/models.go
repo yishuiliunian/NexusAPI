@@ -196,6 +196,9 @@ type LedgerRow struct {
 func (LedgerRow) TableName() string { return "ledgers" }
 
 // TaskRow 异步任务表映射。
+//
+// Input / Result 用 JSON 存储：Postgres 用 jsonb，SQLite 用 blob。
+// 通过 GORM `serializer:json` 让 Go 的 []byte 在跨数据库时都正确落盘。
 type TaskRow struct {
 	ID         string `gorm:"primaryKey;size:64"`
 	UserID     uint64 `gorm:"not null;index"`
@@ -204,10 +207,10 @@ type TaskRow struct {
 	Provider   string `gorm:"size:32;not null;index"`
 	Action     string `gorm:"size:32;not null"`
 	Model      string `gorm:"size:128"`
-	Input      []byte `gorm:"type:blob"`
+	Input      []byte
 	Status     string `gorm:"size:16;not null;index"`
 	Progress   int
-	Result     []byte `gorm:"type:blob"`
+	Result     []byte
 	ExternalID string `gorm:"size:128;index"`
 	Cost       int64
 	Refunded   bool      `gorm:"not null;default:false"`
@@ -312,7 +315,7 @@ type AuditLogRow struct {
 	ActorID   uint64 `gorm:"not null;index"` // 操作发起者（管理员 user.id）
 	Action    string `gorm:"size:64;not null;index"` // channel.create / user.ban / ...
 	Target    string `gorm:"size:128"`
-	Meta      []byte `gorm:"type:blob"` // JSON
+	Meta      []byte // JSON；GORM 按 dialect 自动选 bytea/blob
 	IP        string `gorm:"size:64"`
 	CreatedAt time.Time `gorm:"index"`
 }
