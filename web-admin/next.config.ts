@@ -2,6 +2,7 @@ import type { NextConfig } from 'next';
 
 const config: NextConfig = {
   reactStrictMode: true,
+  output: 'standalone',
   transpilePackages: ['@nexusapi/shared'],
   async rewrites() {
     const backend = process.env.NEXUSAPI_BACKEND_URL ?? 'http://localhost:8080';

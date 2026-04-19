@@ -1,0 +1,63 @@
+# Traefik v3 静态配置
+#
+# 入口：
+#   web    :80    Cloudflare 回源入口（公网），明文 HTTP（TLS 由 CF 终结）
+#   admin  :3443  admin 专用入口，限 TS 网段
+#
+# 路由策略通过 docker-compose 的 labels + file provider 混合注入：
+#   - 动态 router/service：labels（贴在 server/web-user/web-admin 容器上）
+#   - 可复用 middleware：file（./dynamic/middlewares.yml）
+
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
+
+log:
+  level: INFO
+
+accessLog:
+  format: json
+  filters:
+    statusCodes:
+      - "400-499"
+      - "500-599"
+
+# 入口
+entryPoints:
+  web:
+    address: ":80"
+    # Cloudflare 回源：相信 CF 头，拿真实 client IP
+    forwardedHeaders:
+      trustedIPs:
+        # Cloudflare IPv4 段（https://www.cloudflare.com/ips-v4/）
+        - 173.245.48.0/20
+        - 103.21.244.0/22
+        - 103.22.200.0/22
+        - 103.31.4.0/22
+        - 141.101.64.0/18
+        - 108.162.192.0/18
+        - 190.93.240.0/20
+        - 188.114.96.0/20
+        - 197.234.240.0/22
+        - 198.41.128.0/17
+        - 162.158.0.0/15
+        - 104.16.0.0/13
+        - 104.24.0.0/14
+        - 172.64.0.0/13
+        - 131.0.72.0/22
+  admin:
+    address: ":3443"
+
+# Provider
+providers:
+  docker:
+    exposedByDefault: false
+    network: nexusapi_default
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true
+
+# API / dashboard（默认关闭；开启请取消注释并放行端口）
+# api:
+#   dashboard: true
+#   insecure: true

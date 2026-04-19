@@ -1,14 +1,31 @@
-# NexusAPI docker-compose
+# NexusAPI docker-compose · 精简单机部署
+#
+# 架构（5 个 service）：
+#   postgres   数据持久化
+#   server     Go backend（启动时 AutoMigrate 自动建表）
+#   web-user   Next.js 用户端
+#   web-admin  Next.js 管理台
+#   traefik    反向代理 + IPAllowList（admin 限 TS 网段）
+#
+# 不再需要：
+#   - redis    单机部署 reservations/ratelimit 退化为内存
+#   - worker   Claude Code 代理场景不需要 MJ/Suno 轮询
+#   - migrate  server 启动时 GORM AutoMigrate 已处理
+#
+# 路由：
+#   :80   → Cloudflare 橙云回源入口
+#           /api/*, /v1/* → server    其他 → web-user
+#   :3443 → admin 专用入口（Traefik IPAllowList 100.64.0.0/10）
+#           /api/*, /v1/* → server    其他 → web-admin
 #
 # 使用：
-#   1. cp .env.example .env  并编辑
-#   2. （可选）本地构建镜像到 Docker：
+#   1. cp .env.example .env && 修改
+#   2. 本地构建镜像 tarball：
 #      bazel run //backend/cmd/server:image_tarball
-#      bazel run //backend/cmd/worker:image_tarball
-#      bazel run //backend/cmd/migrate:image_tarball
+#      bazel run //web-user:image_tarball
+#      bazel run //web-admin:image_tarball
+#      scp tar 到服务器后 docker load
 #   3. docker compose up -d
-#
-# 生产推荐：通过 CI 推送到 ghcr.io 后改用 ghcr.io/yishuiliunian/nexusapi-* 镜像。
 
 name: nexusapi
 
@@ -20,8 +37,6 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -29,132 +44,112 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
-
-  redis:
-    image: redis:7-alpine
-    restart: unless-stopped
-    command: >
-      sh -c 'if [ -n "$${REDIS_PASSWORD}" ];
-             then exec redis-server --requirepass "$${REDIS_PASSWORD}";
-             else exec redis-server; fi'
-    environment:
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
-    ports:
-      - "${REDIS_PORT:-6379}:6379"
-    volumes:
-      - redisdata:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-
-  migrate:
-    image: nexusapi/migrate:${NEXUSAPI_IMAGE_TAG:-latest}
-    restart: "no"
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      NEXUSAPI_APP_ENV: ${NEXUSAPI_APP_ENV:-prod}
-      NEXUSAPI_DATABASE_DRIVER: ${NEXUSAPI_DATABASE_DRIVER:-postgres}
-      NEXUSAPI_DATABASE_DSN: ${NEXUSAPI_DATABASE_DSN}
-      NEXUSAPI_LOG_LEVEL: ${NEXUSAPI_LOG_LEVEL:-info}
-      NEXUSAPI_LOG_FORMAT: ${NEXUSAPI_LOG_FORMAT:-json}
-    volumes:
-      - ./migrations:/migrations:ro
-    command: ["--source", "file:///migrations", "up"]
+    # 不暴露端口：仅 compose 内部访问
 
   server:
     image: nexusapi/server:${NEXUSAPI_IMAGE_TAG:-latest}
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
     restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
-        condition: service_healthy
-      migrate:
-        condition: service_completed_successfully
     environment:
       NEXUSAPI_APP_ENV: ${NEXUSAPI_APP_ENV:-prod}
       NEXUSAPI_SERVER_HOST: 0.0.0.0
       NEXUSAPI_SERVER_PORT: 8080
-      NEXUSAPI_DATABASE_DRIVER: ${NEXUSAPI_DATABASE_DRIVER:-postgres}
+      NEXUSAPI_DATABASE_DRIVER: postgres
       NEXUSAPI_DATABASE_DSN: ${NEXUSAPI_DATABASE_DSN}
-      NEXUSAPI_REDIS_ADDR: ${NEXUSAPI_REDIS_ADDR:-redis:6379}
-      NEXUSAPI_REDIS_PASSWORD: ${NEXUSAPI_REDIS_PASSWORD:-}
-      NEXUSAPI_REDIS_DB: ${NEXUSAPI_REDIS_DB:-0}
       NEXUSAPI_LOG_LEVEL: ${NEXUSAPI_LOG_LEVEL:-info}
       NEXUSAPI_LOG_FORMAT: ${NEXUSAPI_LOG_FORMAT:-json}
-    ports:
-      - "8080:8080"
+      NEXUSAPI_SECURITY_CRYPTO_SECRET: ${NEXUSAPI_SECURITY_CRYPTO_SECRET}
+      NEXUSAPI_BILLING_USD_TO_CNY: ${NEXUSAPI_BILLING_USD_TO_CNY:-7.2}
+      NEXUSAPI_BILLING_STRICT_PRICING: ${NEXUSAPI_BILLING_STRICT_PRICING:-true}
+      NEXUSAPI_BILLING_AUTO_SYNC_ON_STARTUP: ${NEXUSAPI_BILLING_AUTO_SYNC_ON_STARTUP:-true}
     healthcheck:
-      test: ["CMD", "/app/server", "--healthcheck"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/healthz"]
       interval: 30s
       timeout: 5s
       retries: 3
-
-  worker:
-    image: nexusapi/worker:${NEXUSAPI_IMAGE_TAG:-latest}
-    restart: unless-stopped
-    depends_on:
-      redis:
-        condition: service_healthy
-      server:
-        condition: service_started
-    environment:
-      NEXUSAPI_APP_ENV: ${NEXUSAPI_APP_ENV:-prod}
-      NEXUSAPI_DATABASE_DRIVER: ${NEXUSAPI_DATABASE_DRIVER:-postgres}
-      NEXUSAPI_DATABASE_DSN: ${NEXUSAPI_DATABASE_DSN}
-      NEXUSAPI_REDIS_ADDR: ${NEXUSAPI_REDIS_ADDR:-redis:6379}
-      NEXUSAPI_REDIS_PASSWORD: ${NEXUSAPI_REDIS_PASSWORD:-}
-      NEXUSAPI_LOG_LEVEL: ${NEXUSAPI_LOG_LEVEL:-info}
-      NEXUSAPI_LOG_FORMAT: ${NEXUSAPI_LOG_FORMAT:-json}
+    labels:
+      - traefik.enable=true
+      - traefik.http.services.server.loadbalancer.server.port=8080
+      # 公网入口：API 路径优先匹配（优先级高于前端兜底）
+      - traefik.http.routers.server-web.entrypoints=web
+      - traefik.http.routers.server-web.rule=PathPrefix(`/api`) || PathPrefix(`/v1`) || PathPrefix(`/mj`) || PathPrefix(`/suno`) || PathPrefix(`/video`) || PathPrefix(`/realtime`) || Path(`/healthz`) || Path(`/readyz`) || Path(`/metrics`)
+      - traefik.http.routers.server-web.priority=100
+      - traefik.http.routers.server-web.service=server
+      # admin 入口：admin 前端也需调 /api/admin/*；且限 TS
+      - traefik.http.routers.server-admin.entrypoints=admin
+      - traefik.http.routers.server-admin.rule=PathPrefix(`/api`) || PathPrefix(`/v1`) || Path(`/healthz`)
+      - traefik.http.routers.server-admin.priority=100
+      - traefik.http.routers.server-admin.middlewares=ts-only@file
+      - traefik.http.routers.server-admin.service=server
 
   web-user:
-    image: nexusapi/web-user_image:${NEXUSAPI_IMAGE_TAG:-latest}
+    image: nexusapi/web-user:${NEXUSAPI_IMAGE_TAG:-latest}
+    build:
+      context: ..
+      dockerfile: web-user/Dockerfile
     restart: unless-stopped
     depends_on:
       - server
     environment:
-      NEXUSAPI_BACKEND_URL: ${NEXUSAPI_BACKEND_URL:-http://server:8080}
+      NEXUSAPI_BACKEND_URL: http://server:8080
       PORT: 3000
       HOSTNAME: 0.0.0.0
-    ports:
-      - "${WEB_USER_PORT:-3000}:3000"
+    labels:
+      - traefik.enable=true
+      - traefik.http.services.web-user.loadbalancer.server.port=3000
+      - traefik.http.routers.web-user.entrypoints=web
+      # 兜底：API 路径之外所有请求
+      - traefik.http.routers.web-user.rule=PathPrefix(`/`)
+      - traefik.http.routers.web-user.priority=1
+      - traefik.http.routers.web-user.middlewares=security-headers@file,compress-all@file
+      - traefik.http.routers.web-user.service=web-user
 
   web-admin:
-    image: nexusapi/web-admin_image:${NEXUSAPI_IMAGE_TAG:-latest}
+    image: nexusapi/web-admin:${NEXUSAPI_IMAGE_TAG:-latest}
+    build:
+      context: ..
+      dockerfile: web-admin/Dockerfile
     restart: unless-stopped
     depends_on:
       - server
     environment:
-      NEXUSAPI_BACKEND_URL: ${NEXUSAPI_BACKEND_URL:-http://server:8080}
+      NEXUSAPI_BACKEND_URL: http://server:8080
       PORT: 3001
       HOSTNAME: 0.0.0.0
-    ports:
-      - "${WEB_ADMIN_PORT:-3001}:3001"
+    labels:
+      - traefik.enable=true
+      - traefik.http.services.web-admin.loadbalancer.server.port=3001
+      - traefik.http.routers.web-admin.entrypoints=admin
+      - traefik.http.routers.web-admin.rule=PathPrefix(`/`)
+      - traefik.http.routers.web-admin.priority=1
+      - traefik.http.routers.web-admin.middlewares=ts-only@file,compress-all@file
+      - traefik.http.routers.web-admin.service=web-admin
 
-  caddy:
-    image: caddy:2-alpine
+  traefik:
+    image: traefik:v3.2
     restart: unless-stopped
+    command:
+      - --configfile=/etc/traefik/traefik.yml
     ports:
+      # 公网入口（Cloudflare 橙云回源）
       - "80:80"
-      - "443:443"
-    environment:
-      NEXUSAPI_DOMAIN: ${NEXUSAPI_DOMAIN:-}
-      ADMIN_DOMAIN: ${ADMIN_DOMAIN:-}
+      # admin 专用入口：直接 IP 访问，只放行 TS 网段
+      - "3443:3443"
+      # Traefik dashboard（可选，默认关闭）
+      # - "8082:8082"
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./traefik/dynamic:/etc/traefik/dynamic:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     depends_on:
+      - server
       - web-user
       - web-admin
-      - server
 
 volumes:
   pgdata:
-  redisdata:
-  caddy_data:
-  caddy_config:

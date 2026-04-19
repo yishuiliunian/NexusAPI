@@ -1,0 +1,32 @@
+# Traefik 动态 middleware 配置（file provider，watch=true）
+#
+# ts-only: 仅放行 Tailscale CGNAT 段 + 回环。
+#          admin 入口的所有 router 挂此中间件。
+# cf-only: 仅放行 Cloudflare 边缘 IP 段。可选——给 :80 入口加一层兜底。
+
+http:
+  middlewares:
+    ts-only:
+      ipAllowList:
+        sourceRange:
+          - 100.64.0.0/10      # Tailscale CGNAT 官方段
+          - 127.0.0.1/32       # 本机调试
+        # 通过 Cloudflare 等 CDN 时取 X-Forwarded-For 首个；这里 admin 入口不走 CF，保守用默认
+        # ipStrategy:
+        #   depth: 1
+
+    # 安全头（给公网 router 用）
+    security-headers:
+      headers:
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+        contentTypeNosniff: true
+        frameDeny: false
+        customFrameOptionsValue: SAMEORIGIN
+        referrerPolicy: strict-origin-when-cross-origin
+        customResponseHeaders:
+          Server: ""  # 隐藏 Server 头
+
+    # gzip 压缩
+    compress-all:
+      compress: {}
