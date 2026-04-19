@@ -32,7 +32,7 @@ export default function OrdersPage() {
         <PageHeader
           dark
           title="订单"
-          description={`${items.length} 个订单 · 已收 ¥${(total / 100).toFixed(2)}`}
+          description={`${items.length} 个订单 · 已收 $${(total / 100).toFixed(2)}`}
         />
 
         <section className="overflow-hidden rounded-lg border border-slate-700 bg-slate-800">

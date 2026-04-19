@@ -21,7 +21,7 @@ import {
 } from '@nexusapi/shared';
 import { UserShell } from '../../components/user-shell';
 
-const YUAN = (micro: number) => (micro / 1_000_000).toFixed(4);
+const USD = (micro: number) => (micro / 1_000_000).toFixed(4);
 const FMT = (n: number) => n.toLocaleString();
 
 export default function DashboardPage() {
@@ -114,14 +114,14 @@ function StatGrid({ stats }: { stats: Stats }) {
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
       <StatCard
         label="当前余额"
-        value={`¥${YUAN(s.quota)}`}
-        hint={`累计消耗 ¥${YUAN(s.used_quota)}`}
+        value={`$${USD(s.quota)}`}
+        hint={`累计消耗 $${USD(s.used_quota)}`}
         accent="brand"
       />
       <StatCard
         label={`${s.days} 天消耗`}
-        value={`¥${YUAN(s.total_cost)}`}
-        hint={`日均 ¥${YUAN(Math.floor(s.total_cost / Math.max(s.days, 1)))}`}
+        value={`$${USD(s.total_cost)}`}
+        hint={`日均 $${USD(Math.floor(s.total_cost / Math.max(s.days, 1)))}`}
         accent="warning"
       />
       <StatCard
@@ -183,7 +183,7 @@ function RequestsCard({ stats }: { stats: Stats }) {
 function CostCard({ stats }: { stats: Stats }) {
   const data = (stats.by_day ?? []).map((d) => ({ date: d.date.slice(5), cost: d.cost }));
   return (
-    <Section title="每日消耗（元）">
+    <Section title="每日消耗（USD）">
       <div className="p-4">
         {data.length === 0 ? (
           <EmptyState title="暂无数据" />
@@ -202,7 +202,7 @@ function CostCard({ stats }: { stats: Stats }) {
 function ByModelCard({ stats }: { stats: Stats }) {
   const data = (stats.by_model ?? []).map((m) => ({ name: m.model, value: m.cost }));
   return (
-    <Section title="按模型消耗 Top" description="按收入排序（元）">
+    <Section title="按模型消耗 Top" description="按收入排序（USD）">
       <div className="p-4">
         {data.length === 0 ? (
           <EmptyState title="暂无数据" />
@@ -230,7 +230,7 @@ function ByCapabilityCard({ stats }: { stats: Stats }) {
           <tr>
             <th className="px-4 py-2 text-left font-medium">模型</th>
             <th className="px-4 py-2 text-right font-medium">请求</th>
-            <th className="px-4 py-2 text-right font-medium">消耗（元）</th>
+            <th className="px-4 py-2 text-right font-medium">消耗（USD）</th>
           </tr>
         </thead>
         <tbody>
@@ -238,7 +238,7 @@ function ByCapabilityCard({ stats }: { stats: Stats }) {
             <tr key={m.model} className="border-t border-slate-100">
               <td className="px-4 py-2 font-mono text-xs text-slate-800">{m.model}</td>
               <td className="px-4 py-2 text-right">{FMT(m.requests)}</td>
-              <td className="px-4 py-2 text-right text-slate-700">{YUAN(m.cost)}</td>
+              <td className="px-4 py-2 text-right text-slate-700">{USD(m.cost)}</td>
             </tr>
           ))}
         </tbody>
@@ -282,7 +282,7 @@ function RecentCallsCard({ usages }: { usages: Usage[] }) {
                 <td className="px-4 py-2.5 text-right text-slate-700">{FMT(u.prompt_tokens)}</td>
                 <td className="px-4 py-2.5 text-right text-slate-700">{FMT(u.completion_tokens)}</td>
                 <td className="px-4 py-2.5 text-right font-semibold text-slate-900">
-                  ¥{YUAN(u.cost)}
+                  ${USD(u.cost)}
                 </td>
                 <td className="px-4 py-2.5">
                   <Badge variant={u.status === 'success' ? 'success' : 'danger'} dot>

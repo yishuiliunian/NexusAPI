@@ -143,8 +143,8 @@ func main() {
 	redemptionSvc := redemption.NewService(redemptionRepo, billingEngine)
 	subSvc := subapp.NewService(planRepo, subRepo, billingEngine)
 
-	// 价格同步器：从 LiteLLM JSON 拉全量覆盖。
-	pricingSyncer := pricing.New(httpclient.New(), priceRepo, cfg.Billing.LiteLLMURL, cfg.Billing.USDToCNY)
+	// 价格同步器：从 LiteLLM JSON 拉，统一 USD 单位。
+	pricingSyncer := pricing.New(httpclient.New(), priceRepo, cfg.Billing.LiteLLMURL)
 
 	// 启动时异步同步一次 LiteLLM，避免空价表导致 strictPricing 全拦。
 	// 失败仅告警，不阻塞服务启动（网络问题不应影响服务可用性）。

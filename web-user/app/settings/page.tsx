@@ -20,7 +20,7 @@ import {
 } from '@nexusapi/shared';
 import { UserShell } from '../../components/user-shell';
 
-const YUAN = (micro: number) => (micro / 1_000_000).toFixed(4);
+const USD = (micro: number) => (micro / 1_000_000).toFixed(4);
 
 export default function SettingsPage() {
   const [me, setMe] = useState<Me | null>(null);
@@ -142,10 +142,10 @@ export default function SettingsPage() {
               <Badge variant={me.role === 'admin' ? 'brand' : 'neutral'}>{me.role}</Badge>
             </Field>
             <Field label="当前余额">
-              <span className="font-mono text-sm text-slate-800">¥{YUAN(me.quota)}</span>
+              <span className="font-mono text-sm text-slate-800">${USD(me.quota)}</span>
             </Field>
             <Field label="累计消耗">
-              <span className="font-mono text-sm text-slate-800">¥{YUAN(me.used_quota)}</span>
+              <span className="font-mono text-sm text-slate-800">${USD(me.used_quota)}</span>
             </Field>
           </div>
         </Section>
@@ -220,7 +220,7 @@ export default function SettingsPage() {
               placeholder="0 = 关闭"
             />
             <span className="text-xs text-slate-500">
-              元 · 当前：{alertAt > 0 ? `¥${YUAN(alertAt)}` : '关闭'}
+              USD · 当前：{alertAt > 0 ? `$${USD(alertAt)}` : '关闭'}
             </span>
             <div className="flex-1" />
             <Button variant="secondary" onClick={saveAlert}>

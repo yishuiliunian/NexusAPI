@@ -17,7 +17,7 @@ import {
 } from '@nexusapi/shared';
 import { AdminShell } from '../../components/admin-shell';
 
-const YUAN = (micro: number) => (micro / 1_000_000).toFixed(4);
+const USD = (micro: number) => (micro / 1_000_000).toFixed(4);
 const FMT = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)}k` : n.toLocaleString());
 
 export default function OverviewPage() {
@@ -77,7 +77,7 @@ export default function OverviewPage() {
                   />
                 )}
               </DarkSection>
-              <DarkSection title="收入趋势" subtitle="每日营收（元）">
+              <DarkSection title="收入趋势" subtitle="每日营收（USD）">
                 {(stats.by_day ?? []).length === 0 ? (
                   <Empty />
                 ) : (
@@ -91,7 +91,7 @@ export default function OverviewPage() {
             </div>
 
             <div className="grid gap-4 lg:grid-cols-2">
-              <DarkSection title="Top 模型" subtitle="按收入（元）">
+              <DarkSection title="Top 模型" subtitle="按收入（USD）">
                 {(stats.by_model ?? []).length === 0 ? (
                   <Empty />
                 ) : (
@@ -122,7 +122,7 @@ export default function OverviewPage() {
                           <td className="py-2 text-slate-400">{i + 1}</td>
                           <td className="py-2 text-white">{u.email || `<user#${u.user_id}>`}</td>
                           <td className="py-2 text-right text-slate-300">{FMT(u.requests)}</td>
-                          <td className="py-2 text-right font-mono text-success">¥{YUAN(u.cost)}</td>
+                          <td className="py-2 text-right font-mono text-success">${USD(u.cost)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -164,7 +164,7 @@ function StatGrid({ stats }: { stats: AdminStats }) {
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
       <DarkStatCard label="总请求数" value={FMT(s.total_requests)} hint={`最近 ${s.days} 天`} />
-      <DarkStatCard label="总收入 (元)" value={`¥${YUAN(s.total_cost)}`} hint="累计消耗" accent="success" />
+      <DarkStatCard label="总收入 (USD)" value={`$${USD(s.total_cost)}`} hint="累计消耗" accent="success" />
       <DarkStatCard label="活跃用户" value={s.active_users.toString()} hint="有调用的用户数" accent="brand" />
       <DarkStatCard
         label="成功率"

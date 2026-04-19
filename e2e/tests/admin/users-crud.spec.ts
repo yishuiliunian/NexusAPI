@@ -13,9 +13,9 @@ test.describe('Admin Users 深度', () => {
     const aliceRow = page.locator('tr', { hasText: 'alice@e2e.test' });
     await expect(aliceRow).toBeVisible();
 
-    // 拦截 prompt：输入 77777777（避免 rounding 到整数）
+    // 拦截 prompt：输入 77770000（避免 rounding 到整数）
     page.on('dialog', async (d) => {
-      if (d.type() === 'prompt') await d.accept('77777777');
+      if (d.type() === 'prompt') await d.accept('77770000');
       else await d.accept();
     });
 
@@ -30,8 +30,8 @@ test.describe('Admin Users 深度', () => {
     // 等 list 刷新
     await page.waitForResponse((r) => r.url().includes('/api/admin/users'));
 
-    // 配额文案更新：77777777 / 1_000_000 = 77.777777 → toFixed(4) = "77.7778"
-    await expect(aliceRow).toContainText('77.7778 元');
+    // 配额文案更新：77770000 / 1_000_000 = 77.777777 → toFixed(4) = "77.7778"
+    await expect(aliceRow).toContainText('$77.7778');
   });
 
   test('改配额：空输入不提交', async ({ page }) => {
@@ -76,7 +76,7 @@ test.describe('Admin Users 深度', () => {
     const body = await resp.json();
     expect(body.email).toBe(email);
     expect(body.role).toBe('admin');
-    expect(body.quota).toBe(10_000_000); // 10 元 → 10M micro
+    expect(body.quota).toBe(10_000_000); // 10 USD → 10M micro
 
     // 列表刷新后包含新用户
     await expect(page.locator('table')).toContainText(email);

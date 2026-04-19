@@ -23,7 +23,7 @@ import {
 } from '@nexusapi/shared';
 import { UserShell } from '../../components/user-shell';
 
-const YUAN = (micro: number) => (micro / 1_000_000).toFixed(4);
+const USD = (micro: number) => (micro / 1_000_000).toFixed(4);
 
 const TOPUP_PRESETS = [
   { cents: 700, yuan: 50, label: '轻度使用' },
@@ -76,7 +76,7 @@ export default function BillingPage() {
     setMsg(null);
     try {
       const r = await api.post<{ amount: number }>('/api/billing/redeem', { code: code.trim() });
-      setMsg({ type: 'success', text: `已到账 ¥${YUAN(r.amount)}` });
+      setMsg({ type: 'success', text: `已到账 $${USD(r.amount)}` });
       setCode('');
       refresh();
     } catch (e) {
@@ -143,11 +143,11 @@ export default function BillingPage() {
               当前余额
             </div>
             <div className="mt-3 flex items-baseline gap-2">
-              <span className="text-xl font-medium">¥</span>
-              <span className="text-5xl font-bold">{YUAN(me.quota)}</span>
+              <span className="text-xl font-medium">$</span>
+              <span className="text-5xl font-bold">{USD(me.quota)}</span>
             </div>
             <div className="mt-5 flex flex-wrap gap-6 text-xs">
-              <Stat label="累计消耗" value={`¥${YUAN(me.used_quota)}`} />
+              <Stat label="累计消耗" value={`$${USD(me.used_quota)}`} />
             </div>
           </div>
 
@@ -224,7 +224,7 @@ export default function BillingPage() {
                     </span>
                   )}
                   <div className={'text-2xl font-bold ' + (cents === p.cents ? 'text-brand-600' : 'text-slate-900')}>
-                    ¥{p.yuan}
+                    ${p.yuan}
                   </div>
                   <div className="mt-0.5 text-xs text-slate-500">${p.cents / 100} USD</div>
                   <div className="mt-1 text-[11px] text-slate-400">{p.label}</div>
@@ -274,7 +274,7 @@ export default function BillingPage() {
                     </td>
                     <td className="px-5 py-3 text-slate-700">{o.gateway}</td>
                     <td className="px-5 py-3 text-right font-semibold text-slate-900">
-                      ¥{(o.amount_cents / 100).toFixed(2)}
+                      ${(o.amount_cents / 100).toFixed(2)}
                     </td>
                     <td className="px-5 py-3">
                       <Badge variant={o.status === 'paid' ? 'success' : 'neutral'} dot>

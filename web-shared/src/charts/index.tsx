@@ -74,7 +74,7 @@ export interface TrendChartProps {
   series: { key: string; label: string; color?: string }[];
   height?: number;
   type?: 'line' | 'area';
-  /** Y 轴数值格式化。例如 (n) => (n / 1_000_000).toFixed(2) 把 micro 转元。 */
+  /** Y 轴数值格式化。例如 (n) => (n / 1_000_000).toFixed(2) 把 micro 转 USD。 */
   yFormat?: (v: number) => string;
 }
 

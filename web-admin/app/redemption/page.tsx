@@ -17,7 +17,7 @@ import {
 } from '@nexusapi/shared';
 import { AdminShell } from '../../components/admin-shell';
 
-const PRESETS = [10_0000, 50_0000, 100_0000, 500_0000]; // 1/5/10/50 元
+const PRESETS = [1_000_000, 5_000_000, 10_000_000, 50_000_000]; // 1/5/10/50 USD
 
 interface Batch {
   id: number;
@@ -43,7 +43,7 @@ export default function RedemptionPage() {
   const [name, setName] = useState('');
   const [prefix, setPrefix] = useState('NEXUS-');
   const [count, setCount] = useState(100);
-  const [amount, setAmount] = useState<number>(50_0000); // 5 元
+  const [amount, setAmount] = useState<number>(5_000_000); // 5 USD
   const [expires, setExpires] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [msg, setMsg] = useState('');
@@ -204,7 +204,7 @@ export default function RedemptionPage() {
                           : 'text-slate-400 hover:text-white')
                       }
                     >
-                      ¥{(v / 1_000_000).toFixed(0)}
+                      ${(v / 1_000_000).toFixed(0)}
                     </button>
                   ))}
                   <input
@@ -214,7 +214,7 @@ export default function RedemptionPage() {
                     className="bg-slate-900 px-2 py-2 text-xs text-slate-300 placeholder-slate-500 outline-none rounded-md"
                   />
                 </div>
-                <p className="mt-1 text-[11px] text-slate-500">单位：元</p>
+                <p className="mt-1 text-[11px] text-slate-500">单位：USD</p>
               </DarkField>
 
               <DarkField label="有效期（可选）">
@@ -232,10 +232,10 @@ export default function RedemptionPage() {
                 </div>
                 <div className="mt-1 flex items-baseline gap-2">
                   <span className="text-2xl font-bold text-brand-400">
-                    ¥{((amount * count) / 1_000_000).toFixed(2)}
+                    ${((amount * count) / 1_000_000).toFixed(2)}
                   </span>
                   <span className="text-xs text-slate-500">
-                    {count} × ¥{(amount / 1_000_000).toFixed(2)}
+                    {count} × ${(amount / 1_000_000).toFixed(2)}
                   </span>
                 </div>
               </div>
@@ -258,7 +258,7 @@ export default function RedemptionPage() {
                   hint={totalCount > 0 ? `${((redeemedCount / totalCount) * 100).toFixed(1)}%` : '0%'}
                   color="text-success"
                 />
-                <Metric label="累计放款" value={`¥${totalYuan.toFixed(0)}`} color="text-brand-400" />
+                <Metric label="累计放款" value={`$${totalYuan.toFixed(0)}`} color="text-brand-400" />
               </div>
             </section>
 
@@ -280,12 +280,12 @@ export default function RedemptionPage() {
                       <div className="flex-1">
                         <div className="text-sm font-semibold text-white">{b.name}</div>
                         <div className="mt-0.5 font-mono text-[11px] text-slate-500">
-                          {b.prefix} · {b.count} 张 · ¥{(b.amount / 1_000_000).toFixed(0)} / 张
+                          {b.prefix} · {b.count} 张 · ${(b.amount / 1_000_000).toFixed(0)} / 张
                         </div>
                       </div>
                       <div className="text-right">
                         <div className="font-mono text-sm text-brand-400">
-                          ¥{((b.amount * b.count) / 1_000_000).toFixed(0)}
+                          ${((b.amount * b.count) / 1_000_000).toFixed(0)}
                         </div>
                         <Badge variant={b.redeemed === b.count ? 'success' : 'neutral'}>
                           {b.count === 0 ? '空' : `${Math.round((b.redeemed / b.count) * 100)}%`}
@@ -329,7 +329,7 @@ export default function RedemptionPage() {
                   <tr key={c.id} className="border-t border-slate-700">
                     <td className="px-5 py-2.5 font-mono tracking-wider text-white">{c.code}</td>
                     <td className="px-5 py-2.5 text-right font-mono text-brand-400">
-                      ¥{(c.amount / 1_000_000).toFixed(2)}
+                      ${(c.amount / 1_000_000).toFixed(2)}
                     </td>
                     <td className="px-5 py-2.5 font-mono text-slate-400">
                       {c.expires_at ? c.expires_at.slice(0, 10) : '—'}

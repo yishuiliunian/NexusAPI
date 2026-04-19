@@ -13,7 +13,7 @@ import {
 } from '@nexusapi/shared';
 import { AdminShell } from '../../components/admin-shell';
 
-const YUAN = (micro: number) => (micro / 1_000_000).toFixed(4);
+const USD = (micro: number) => (micro / 1_000_000).toFixed(4);
 
 // 生成 16 字符强密码（URL-safe base64 截断）
 function randomPassword(len = 16) {
@@ -75,11 +75,11 @@ export default function AdminUsersPage() {
 
   async function setQuota(u: AdminUser) {
     const current = (u.quota / 1_000_000).toFixed(4);
-    const v = prompt(`${u.email} 当前余额 ¥${current}，输入新余额（元）`, current);
+    const v = prompt(`${u.email} 当前余额 $${current}，输入新余额（USD）`, current);
     if (v === null) return;
     const yuan = Number(v);
     if (!Number.isFinite(yuan) || yuan < 0) {
-      alert('请输入 >= 0 的数字（元）');
+      alert('请输入 >= 0 的数字（USD）');
       return;
     }
     await adminApi.updateUserQuota(u.id, Math.round(yuan * 1_000_000));
@@ -187,7 +187,7 @@ export default function AdminUsersPage() {
                 </select>
               </div>
               <div>
-                <label className="text-xs font-medium text-slate-300">初始余额（元）</label>
+                <label className="text-xs font-medium text-slate-300">初始余额（USD）</label>
                 <Input
                   data-testid="new-user-quota"
                   type="number"
@@ -238,10 +238,10 @@ export default function AdminUsersPage() {
                     <Badge variant={u.role === 'admin' ? 'brand' : 'neutral'}>{u.role}</Badge>
                   </td>
                   <td className="px-5 py-3 text-right font-mono text-slate-300">
-                    ¥{YUAN(u.quota)}
+                    ${USD(u.quota)}
                   </td>
                   <td className="px-5 py-3 text-right font-mono text-slate-400">
-                    ¥{YUAN(u.used_quota)}
+                    ${USD(u.used_quota)}
                   </td>
                   <td className="px-5 py-3 text-right font-mono text-slate-300">
                     {u.rpm_limit && u.rpm_limit > 0 ? u.rpm_limit : <span className="text-slate-500">不限</span>}

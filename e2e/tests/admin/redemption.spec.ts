@@ -21,8 +21,8 @@ test.describe('Admin 激活码批量', () => {
     const inputs = page.locator('input[type="number"]');
     await inputs.nth(0).fill('10');
 
-    // 提交（选 ¥5 预设）
-    await page.getByRole('button', { name: /^¥5$/ }).click();
+    // 提交（选 $5 预设）
+    await page.getByRole('button', { name: /^$5$/ }).click();
 
     const resp = page.waitForResponse((r) => r.url().endsWith('/api/admin/redemption-batches') && r.request().method() === 'POST');
     await page.getByRole('button', { name: /生成 10 张/ }).click();

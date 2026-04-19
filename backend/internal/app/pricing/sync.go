@@ -4,15 +4,14 @@
 // Anthropic / Gemini / DeepSeek / Qwen 等上百模型，字段含 mode（能力）、
 // input_cost_per_token、output_cost_per_token、cache_read_input_token_cost。
 //
-// 同步流程（人工触发，非周期任务）：
+// 同步流程（人工触发 + 启动时自动一次）：
 //   1. HTTP GET JSON（带超时 + 2 次重试）
 //   2. 解析为 map[string]entry，过滤非模型键（如 sample_spec）
 //   3. mode → Capability 映射
-//   4. USD/token → micro CNY/1M token 换算（汇率可配）
+//   4. USD/token → micro-USD per 1M token 换算（1 USD = 1_000_000 micro）
 //   5. 事务：DELETE WHERE capability <> 'task' → bulk INSERT
 //
-// 保留 capability = task 记录的原因：LiteLLM 不覆盖 Midjourney/Suno 等按次计费模型，
-// 这些由管理员手工维护。
+// 统一单位：**USD**。系统内所有金额都是 micro USD，不做法币汇率换算。
 package pricing
 
 import (
@@ -32,9 +31,6 @@ import (
 // DefaultLiteLLMURL LiteLLM 社区价格清单（默认源）。
 const DefaultLiteLLMURL = "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
 
-// DefaultUSDToCNY USD → CNY 汇率缺省值。
-const DefaultUSDToCNY = 7.2
-
 // Writer 价格写入抽象。DB 层的 *db.ModelPriceRepo 直接满足。
 type Writer interface {
 	ReplaceNonTask(ctx context.Context, prices []*billing.ModelPrice) (inserted int, deleted int, err error)
@@ -42,24 +38,20 @@ type Writer interface {
 
 // Syncer LiteLLM 价格同步器。
 type Syncer struct {
-	HTTP      *http.Client
-	Repo      Writer
-	URL       string  // 为空时用 DefaultLiteLLMURL
-	USDToCNY  float64 // <=0 时用 DefaultUSDToCNY
+	HTTP *http.Client
+	Repo Writer
+	URL  string // 为空时用 DefaultLiteLLMURL
 }
 
 // New 构造 Syncer。
-func New(httpClient *http.Client, repo Writer, url string, rate float64) *Syncer {
+func New(httpClient *http.Client, repo Writer, url string) *Syncer {
 	if httpClient == nil {
 		httpClient = http.DefaultClient
 	}
 	if url == "" {
 		url = DefaultLiteLLMURL
 	}
-	if rate <= 0 {
-		rate = DefaultUSDToCNY
-	}
-	return &Syncer{HTTP: httpClient, Repo: repo, URL: url, USDToCNY: rate}
+	return &Syncer{HTTP: httpClient, Repo: repo, URL: url}
 }
 
 // Result 同步结果。
@@ -123,15 +115,14 @@ func (s *Syncer) fetch(ctx context.Context) (map[string]entry, error) {
 
 // entry LiteLLM JSON 中单条目。只映射本项目用得上的字段。
 type entry struct {
-	Mode                       string  `json:"mode"`
-	InputCostPerToken          float64 `json:"input_cost_per_token"`
-	OutputCostPerToken         float64 `json:"output_cost_per_token"`
-	CacheReadInputTokenCost    float64 `json:"cache_read_input_token_cost"`
+	Mode                        string  `json:"mode"`
+	InputCostPerToken           float64 `json:"input_cost_per_token"`
+	OutputCostPerToken          float64 `json:"output_cost_per_token"`
+	CacheReadInputTokenCost     float64 `json:"cache_read_input_token_cost"`
 	CacheCreationInputTokenCost float64 `json:"cache_creation_input_token_cost"`
 }
 
-// modeMap LiteLLM mode → billing.Capability。
-// 未列出的（audio_speech → tts, audio_transcription → stt 等）映射见函数。
+// modeToCapability LiteLLM mode → billing.Capability。
 func modeToCapability(mode string) (billing.Capability, bool) {
 	switch mode {
 	case "chat", "completion":
@@ -159,7 +150,6 @@ func (s *Syncer) convert(data map[string]entry) ([]*billing.ModelPrice, int) {
 	out := make([]*billing.ModelPrice, 0, len(data))
 	skipped := 0
 	for name, e := range data {
-		// LiteLLM 会有 "sample_spec" 这类示例键；跳过。
 		if name == "" || name == "sample_spec" {
 			skipped++
 			continue
@@ -169,7 +159,6 @@ func (s *Syncer) convert(data map[string]entry) ([]*billing.ModelPrice, int) {
 			skipped++
 			continue
 		}
-		// 全零视为无效（某些占位 entry）
 		if e.InputCostPerToken == 0 && e.OutputCostPerToken == 0 {
 			skipped++
 			continue
@@ -177,31 +166,30 @@ func (s *Syncer) convert(data map[string]entry) ([]*billing.ModelPrice, int) {
 		out = append(out, &billing.ModelPrice{
 			Model:       name,
 			Capability:  cap,
-			InputPrice:  s.toMicroPer1M(e.InputCostPerToken),
-			OutputPrice: s.toMicroPer1M(e.OutputCostPerToken),
-			CachePrice:  s.toMicroPer1M(e.CacheReadInputTokenCost),
+			InputPrice:  toMicroPer1M(e.InputCostPerToken),
+			OutputPrice: toMicroPer1M(e.OutputCostPerToken),
+			CachePrice:  toMicroPer1M(e.CacheReadInputTokenCost),
 			Enabled:     true,
 		})
 	}
 	return out, skipped
 }
 
-// toMicroPer1M USD/token → micro-CNY/1M-token。
+// toMicroPer1M USD/token → micro-USD per 1M token。
 //
 // LiteLLM: USD per single token
-// 我们：micro CNY per 1,000,000 tokens。1 CNY = 1,000,000 micro。
+// 本项目: micro USD per 1,000,000 tokens（1 USD = 1,000,000 micro）。
 //
-//	cny_per_token      = usd_per_token * rate
-//	cny_per_1M_tokens  = cny_per_token * 1_000_000
-//	micro_per_1M       = cny_per_1M_tokens * 1_000_000
-//	                   = usd_per_token * rate * 1e12
+//	usd_per_1M_tokens = usd_per_token * 1_000_000
+//	micro_per_1M      = usd_per_1M_tokens * 1_000_000
+//	                  = usd_per_token * 1e12
 //
-// 例：gpt-4o input = $2.5/1M = $2.5e-6/token, rate=7.2
-//     micro_per_1M = 2.5e-6 * 7.2 * 1e12 = 18,000,000 ≈ 18 CNY/1M。符合预期。
-func (s *Syncer) toMicroPer1M(usdPerToken float64) int64 {
+// 例：gpt-4o input = $2.5/1M = $2.5e-6/token
+//     micro_per_1M = 2.5e-6 * 1e12 = 2_500_000 = $2.5/1M。符合预期。
+func toMicroPer1M(usdPerToken float64) int64 {
 	if usdPerToken <= 0 {
 		return 0
 	}
-	v := usdPerToken * s.USDToCNY * 1e12
+	v := usdPerToken * 1e12
 	return int64(math.Round(v))
 }

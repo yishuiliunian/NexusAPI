@@ -78,7 +78,7 @@ export default function ModelsPage() {
         <PageHeader
           dark
           title="模型价格"
-          description="按 model + capability upsert · 价格单位：元 / 1M tokens"
+          description="按 model + capability upsert · 价格单位：USD / 1M tokens"
           actions={
             <Button onClick={syncFromLiteLLM} disabled={syncing}>
               {syncing ? '同步中…' : '从 LiteLLM 同步'}
@@ -108,7 +108,7 @@ export default function ModelsPage() {
                 ))}
               </select>
             </Field>
-            <Field label="input 价（元 / 1M tokens）">
+            <Field label="input 价（USD / 1M tokens）">
               <Input
                 type="number"
                 step="0.0001"
@@ -119,7 +119,7 @@ export default function ModelsPage() {
                 className="bg-slate-900 text-white border-slate-700 font-mono"
               />
             </Field>
-            <Field label="output 价（元 / 1M tokens）">
+            <Field label="output 价（USD / 1M tokens）">
               <Input
                 type="number"
                 step="0.0001"
@@ -130,7 +130,7 @@ export default function ModelsPage() {
                 className="bg-slate-900 text-white border-slate-700 font-mono"
               />
             </Field>
-            <Field label="cache 读价（元 / 1M tokens）">
+            <Field label="cache 读价（USD / 1M tokens）">
               <Input
                 type="number"
                 step="0.0001"
@@ -141,7 +141,7 @@ export default function ModelsPage() {
                 className="bg-slate-900 text-white border-slate-700 font-mono"
               />
             </Field>
-            <Field label="task 按次价（元 / 次）">
+            <Field label="task 按次价（USD / 次）">
               <Input
                 type="number"
                 step="0.0001"
@@ -188,16 +188,16 @@ export default function ModelsPage() {
                     <Badge variant="neutral">{p.capability}</Badge>
                   </td>
                   <td className="px-5 py-3 text-right font-mono text-slate-300">
-                    ¥{(p.input_price / 1_000_000).toFixed(4)}
+                    ${(p.input_price / 1_000_000).toFixed(4)}
                   </td>
                   <td className="px-5 py-3 text-right font-mono text-slate-300">
-                    ¥{(p.output_price / 1_000_000).toFixed(4)}
+                    ${(p.output_price / 1_000_000).toFixed(4)}
                   </td>
                   <td className="px-5 py-3 text-right font-mono text-slate-400">
-                    ¥{(p.cache_price / 1_000_000).toFixed(4)}
+                    ${(p.cache_price / 1_000_000).toFixed(4)}
                   </td>
                   <td className="px-5 py-3 text-right font-mono text-slate-400">
-                    ¥{(p.task_price / 1_000_000).toFixed(4)}
+                    ${(p.task_price / 1_000_000).toFixed(4)}
                   </td>
                   <td className="px-5 py-3">
                     <Badge variant={p.enabled ? 'success' : 'neutral'}>

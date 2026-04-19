@@ -30,14 +30,14 @@ type Config struct {
 }
 
 // BillingConfig 计费相关配置。
+//
+// 系统统一使用 USD 作为货币单位：所有金额字段（price/cost/quota/amount）都是
+// micro USD（1 USD = 1_000_000 micro）。不做汇率换算，上游 LiteLLM 给 USD，
+// 我们存 USD，前端显示 USD。
 type BillingConfig struct {
-	// USDToCNY LiteLLM 价格同步时 USD → CNY 汇率。默认 7.2。
-	USDToCNY float64 `mapstructure:"usd_to_cny"`
 	// LiteLLMURL LiteLLM 价格清单 URL。留空走 DefaultLiteLLMURL。
 	LiteLLMURL string `mapstructure:"litellm_url"`
-	// StrictPricing 为 true 时，未在 model_prices 中配置的模型会被 402 拒绝，
-	// 避免新模型上线或上游价格缺失导致的"免费通过"漏洞。默认 true。
-	// 开发环境可显式设为 false 绕过检查。
+	// StrictPricing 为 true 时，未在 model_prices 中配置的模型会被 402 拒绝。
 	StrictPricing bool `mapstructure:"strict_pricing"`
 	// AutoSyncOnStartup 启动时异步跑一次 LiteLLM 同步。默认 true。
 	AutoSyncOnStartup bool `mapstructure:"auto_sync_on_startup"`
@@ -212,7 +212,6 @@ func Load(path string) (*Config, error) {
 	v.SetDefault("oauth.google.authorize_url", "")
 	v.SetDefault("oauth.google.token_url", "")
 	v.SetDefault("oauth.google.api_base", "")
-	v.SetDefault("billing.usd_to_cny", 7.2)
 	v.SetDefault("billing.litellm_url", "")
 	v.SetDefault("billing.strict_pricing", true)
 	v.SetDefault("billing.auto_sync_on_startup", true)

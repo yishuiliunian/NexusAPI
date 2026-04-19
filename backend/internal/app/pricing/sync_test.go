@@ -10,20 +10,19 @@ import (
 	"github.com/yishuiliunian/nexusapi/backend/internal/domain/billing"
 )
 
-// fakeRepo 实现 Writer，在内存记录调用。
 type fakeRepo struct {
 	received []*billing.ModelPrice
 }
 
 func (r *fakeRepo) ReplaceNonTask(_ context.Context, prices []*billing.ModelPrice) (int, int, error) {
 	r.received = prices
-	return len(prices), 3, nil // deleted=3 模拟既有非 task 条目数
+	return len(prices), 3, nil
 }
 
 func TestSyncer_Sync_Smoke(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]any{
-			"sample_spec": map[string]any{"mode": "chat"}, // 应被跳过
+			"sample_spec": map[string]any{"mode": "chat"},
 			"gpt-4o": map[string]any{
 				"mode":                        "chat",
 				"input_cost_per_token":        2.5e-6,
@@ -47,17 +46,17 @@ func TestSyncer_Sync_Smoke(t *testing.T) {
 				"mode":                  "chat",
 				"input_cost_per_token":  0,
 				"output_cost_per_token": 0,
-			}, // 应被跳过（全零）
+			},
 			"unknown-mode": map[string]any{
 				"mode":                 "holographic",
 				"input_cost_per_token": 1e-6,
-			}, // 应被跳过（未知 mode）
+			},
 		})
 	}))
 	defer srv.Close()
 
 	repo := &fakeRepo{}
-	s := New(srv.Client(), repo, srv.URL, 7.2)
+	s := New(srv.Client(), repo, srv.URL)
 
 	result, err := s.Sync(context.Background())
 	if err != nil {
@@ -68,15 +67,11 @@ func TestSyncer_Sync_Smoke(t *testing.T) {
 	if result.Inserted != 4 {
 		t.Fatalf("inserted=%d, want 4", result.Inserted)
 	}
-	// 跳过 3：sample_spec + empty-prices + unknown-mode
 	if result.Skipped != 3 {
 		t.Fatalf("skipped=%d, want 3", result.Skipped)
 	}
-	if result.Deleted != 3 {
-		t.Fatalf("deleted=%d, want 3", result.Deleted)
-	}
 
-	// gpt-4o input $2.5/1M * 7.2 = 18 CNY/1M = 18_000_000 micro
+	// gpt-4o input $2.5/1M → 2_500_000 micro USD per 1M tokens
 	var gpt *billing.ModelPrice
 	for _, p := range repo.received {
 		if p.Model == "gpt-4o" {
@@ -89,14 +84,14 @@ func TestSyncer_Sync_Smoke(t *testing.T) {
 	if gpt.Capability != billing.CapChat {
 		t.Fatalf("gpt-4o capability = %q, want chat", gpt.Capability)
 	}
-	if gpt.InputPrice != 18_000_000 {
-		t.Fatalf("gpt-4o input = %d, want 18_000_000", gpt.InputPrice)
+	if gpt.InputPrice != 2_500_000 {
+		t.Fatalf("gpt-4o input = %d, want 2_500_000 (= $2.5/1M)", gpt.InputPrice)
 	}
-	if gpt.OutputPrice != 72_000_000 {
-		t.Fatalf("gpt-4o output = %d, want 72_000_000", gpt.OutputPrice)
+	if gpt.OutputPrice != 10_000_000 {
+		t.Fatalf("gpt-4o output = %d, want 10_000_000 (= $10/1M)", gpt.OutputPrice)
 	}
-	if gpt.CachePrice != 9_000_000 {
-		t.Fatalf("gpt-4o cache = %d, want 9_000_000", gpt.CachePrice)
+	if gpt.CachePrice != 1_250_000 {
+		t.Fatalf("gpt-4o cache = %d, want 1_250_000 (= $1.25/1M)", gpt.CachePrice)
 	}
 	if !gpt.Enabled {
 		t.Fatal("gpt-4o should be enabled")
@@ -109,7 +104,7 @@ func TestSyncer_Sync_UpstreamError(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	s := New(srv.Client(), &fakeRepo{}, srv.URL, 7.2)
+	s := New(srv.Client(), &fakeRepo{}, srv.URL)
 	_, err := s.Sync(context.Background())
 	if err == nil {
 		t.Fatal("want error on 5xx, got nil")
@@ -117,18 +112,17 @@ func TestSyncer_Sync_UpstreamError(t *testing.T) {
 }
 
 func TestToMicroPer1M(t *testing.T) {
-	s := &Syncer{USDToCNY: 7.2}
 	cases := []struct {
 		usdPerToken float64
 		want        int64
 	}{
-		{2.5e-6, 18_000_000},    // $2.5/1M * 7.2 = 18 CNY/1M
-		{0.02e-6, 144_000},      // $0.02/1M * 7.2 = 0.144 CNY/1M
+		{2.5e-6, 2_500_000}, // $2.5/1M
+		{0.02e-6, 20_000},   // $0.02/1M
 		{0, 0},
-		{-1e-6, 0},              // 负数兜底
+		{-1e-6, 0}, // 负数兜底
 	}
 	for _, c := range cases {
-		got := s.toMicroPer1M(c.usdPerToken)
+		got := toMicroPer1M(c.usdPerToken)
 		if got != c.want {
 			t.Errorf("toMicroPer1M(%g) = %d, want %d", c.usdPerToken, got, c.want)
 		}
