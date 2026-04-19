@@ -1,0 +1,22 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "alert",
+    srcs = ["alert.go"],
+    importpath = "github.com/yishuiliunian/nexusapi/backend/internal/app/alert",
+    visibility = ["//backend:__subpackages__"],
+    deps = [
+        "//backend/internal/domain/user",
+        "//backend/pkg/mailer",
+    ],
+)
+
+go_test(
+    name = "alert_test",
+    srcs = ["alert_test.go"],
+    embed = [":alert"],
+    deps = [
+        "//backend/internal/domain/user",
+        "//backend/pkg/errors",
+    ],
+)

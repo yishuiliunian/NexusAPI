@@ -1,0 +1,14 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "twofa",
+    srcs = ["twofa.go"],
+    importpath = "github.com/yishuiliunian/nexusapi/backend/internal/app/twofa",
+    visibility = ["//backend:__subpackages__"],
+)
+
+go_test(
+    name = "twofa_test",
+    srcs = ["twofa_test.go"],
+    embed = [":twofa"],
+)

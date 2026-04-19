@@ -1,0 +1,59 @@
+"""e2e —— Playwright 端到端测试。
+
+Playwright 浏览器二进制约 200MB/家，不适合进 Bazel sandbox。
+策略：
+  - 源码 / 配置 / fixtures 通过 copy_to_bin 管起来
+  - 浏览器由 `pnpm --filter @nexusapi/e2e install-browsers` 一次性装到
+    本地 ~/Library/Caches/ms-playwright（macOS）或 ~/.cache/ms-playwright（Linux）
+  - `bazel run //e2e:test` 通过 PLAYWRIGHT_BROWSERS_PATH 指过去
+"""
+
+load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
+load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_library")
+load("@npm//:defs.bzl", "npm_link_all_packages")
+load("@npm//e2e:@playwright/test/package_json.bzl", playwright_bin = "bin")
+
+npm_link_all_packages(name = "node_modules")
+
+# 源码（tests / fixtures / scripts / config）
+js_library(
+    name = "sources",
+    srcs = glob(
+        [
+            "tests/**/*.ts",
+            "fixtures/**/*.ts",
+            "scripts/**/*.ts",
+            "scripts/**/*.mjs",
+            "playwright.config.ts",
+            "tsconfig.json",
+        ],
+        allow_empty = True,
+    ),
+    visibility = ["//visibility:public"],
+)
+
+exports_files([
+    "playwright.config.ts",
+    "tsconfig.json",
+    "package.json",
+])
+
+# Playwright test CLI，走 npm 包的 bin 导出（而不是手写 entry_point）
+# 浏览器由本地缓存提供：首次需 `pnpm --filter @nexusapi/e2e install-browsers`
+playwright_bin.playwright_binary(
+    name = "test_bin",
+    chdir = package_name(),
+    data = [
+        "package.json",
+        ":node_modules",
+        ":sources",
+    ],
+    fixed_args = ["test"],
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "test",
+    actual = ":test_bin",
+    visibility = ["//visibility:public"],
+)

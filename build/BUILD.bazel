@@ -1,0 +1,54 @@
+# Bazel 构建宏聚合包。所有 .bzl 文件通过 load("//build:xxx.bzl", ...) 引用。
+#
+# 包内无实际构建目标，仅提供：
+#   - oci.bzl         : go_oci_image()
+#   - next.bzl        : next()
+#   - next_oci.bzl    : next_oci_image()
+#   - go.bzl          : go_service()（便捷宏）
+
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "workspace_status.sh",
+])
+
+bzl_library(
+    name = "oci",
+    srcs = ["oci.bzl"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "@aspect_bazel_lib//lib:expand_template",
+        "@rules_oci//oci:defs",
+    ],
+)
+
+bzl_library(
+    name = "next",
+    srcs = ["next.bzl"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "@aspect_rules_js//js:defs",
+    ],
+)
+
+bzl_library(
+    name = "next_oci",
+    srcs = ["next_oci.bzl"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "@aspect_bazel_lib//lib:expand_template",
+        "@aspect_rules_js//js:defs",
+        "@rules_oci//oci:defs",
+    ],
+)
+
+bzl_library(
+    name = "go",
+    srcs = ["go.bzl"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "@rules_go//go:def",
+    ],
+)

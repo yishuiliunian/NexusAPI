@@ -1,0 +1,20 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "audit",
+    srcs = ["audit.go"],
+    importpath = "github.com/yishuiliunian/nexusapi/backend/internal/app/audit",
+    visibility = ["//backend:__subpackages__"],
+    deps = [
+        "//backend/internal/domain/audit",
+        "//backend/internal/interface/http/middleware",
+        "@com_github_gin_gonic_gin//:gin",
+        "@org_uber_go_zap//:zap",
+    ],
+)
+
+go_test(
+    name = "audit_test",
+    srcs = ["audit_test.go"],
+    embed = [":audit"],
+)

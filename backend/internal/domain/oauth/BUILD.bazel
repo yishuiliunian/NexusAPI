@@ -1,0 +1,8 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "oauth",
+    srcs = ["oauth.go"],
+    importpath = "github.com/yishuiliunian/nexusapi/backend/internal/domain/oauth",
+    visibility = ["//backend:__subpackages__"],
+)

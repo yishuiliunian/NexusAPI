@@ -1,0 +1,28 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "relay",
+    srcs = [
+        "affinity.go",
+        "breaker.go",
+        "relay.go",
+    ],
+    importpath = "github.com/yishuiliunian/nexusapi/backend/internal/app/relay",
+    visibility = ["//backend:__subpackages__"],
+    deps = [
+        "//backend/internal/domain/channel",
+        "//backend/internal/domain/relay",
+        "//backend/pkg/errors",
+    ],
+)
+
+go_test(
+    name = "relay_test",
+    srcs = ["relay_test.go"],
+    embed = [":relay"],
+    deps = [
+        "//backend/internal/domain/channel",
+        "//backend/internal/domain/relay",
+        "//backend/pkg/errors",
+    ],
+)

@@ -1,0 +1,26 @@
+* text=auto eol=lf
+*.go text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.js text eol=lf
+*.json text eol=lf
+*.bzl text eol=lf
+BUILD.bazel text eol=lf
+MODULE.bazel text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.md text eol=lf
+*.sh text eol=lf
+
+# Binary
+*.png binary
+*.jpg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+
+# Lock files — don't diff
+pnpm-lock.yaml -diff
+MODULE.bazel.lock -diff
+go.sum -diff

@@ -1,0 +1,440 @@
+// User Dashboard Mockup · 监控看板
+//
+// 采用"左侧导航 + 主内容"经典布局，主内容分 3 层：
+//   1. 顶栏（标题 + 时间选择 + 用户头像）
+//   2. 4 统计卡片
+//   3. 图表（tokens 折线 / 请求折线 / 每日消耗面积 / 按模型柱状 / 按能力环形）
+// 设计重点：数据密度大，但视觉层级清晰，不压迫。
+
+include "./components.pastel"
+
+canvas "dashboard" {
+    width      = 1440
+    height     = 1800
+    background = colors.gray-50
+}
+
+frame shell {
+    width   = fill
+    height  = fill
+    layout  = horizontal
+
+    // ---------- 侧边导航 ----------
+    frame sidebar {
+        width   = 240
+        height  = fill
+        fill    = colors.white
+        stroke  = [1, colors.gray-200]
+        layout  = vertical
+        padding = [24, 16]
+        gap     = 8
+
+        // Logo 区
+        frame logo {
+            width = fill height = hug layout = horizontal gap = 10 align = center padding = [0, 8, 16, 8]
+
+            frame icon {
+                width = 28 height = 28 fill = colors.primary-600 radius = radius.md layout = vertical justify = center align = center
+                text "N" { size = 16, weight = bold, color = colors.white }
+            }
+            text "NexusAPI" { size = 18, weight = bold, color = colors.gray-900 }
+        }
+
+        // 分组标题
+        text "主要" { size = 11, weight = medium, color = colors.gray-400, text-transform = uppercase, letter-spacing = 0.5 }
+
+        // 当前选中：Dashboard
+        frame nav-active {
+            width = fill height = hug padding = [10, 12] layout = horizontal gap = 10 align = center
+            fill = colors.primary-50 radius = radius.md
+            frame dot { width = 4 height = 20 fill = colors.primary-600 radius = 2 }
+            text "监控看板" { size = 14, weight = semibold, color = colors.primary-600 }
+        }
+
+        // 其他
+        frame nav-item {
+            width = fill height = hug padding = [10, 16] layout = horizontal gap = 10 align = center
+            text "API Keys"  { size = 14, weight = normal, color = colors.gray-600 }
+        }
+        frame nav-item2 {
+            width = fill height = hug padding = [10, 16] layout = horizontal gap = 10 align = center
+            text "Playground"  { size = 14, weight = normal, color = colors.gray-600 }
+        }
+        frame nav-item3 {
+            width = fill height = hug padding = [10, 16] layout = horizontal gap = 10 align = center
+            text "调用日志"  { size = 14, weight = normal, color = colors.gray-600 }
+        }
+        frame nav-item4 {
+            width = fill height = hug padding = [10, 16] layout = horizontal gap = 10 align = center
+            text "异步任务"  { size = 14, weight = normal, color = colors.gray-600 }
+        }
+
+        text "账户" { size = 11, weight = medium, color = colors.gray-400, text-transform = uppercase, letter-spacing = 0.5 }
+
+        frame nav-item5 {
+            width = fill height = hug padding = [10, 16] layout = horizontal gap = 10 align = center
+            text "充值订阅"  { size = 14, weight = normal, color = colors.gray-600 }
+        }
+        frame nav-item6 {
+            width = fill height = hug padding = [10, 16] layout = horizontal gap = 10 align = center
+            text "账户设置"  { size = 14, weight = normal, color = colors.gray-600 }
+        }
+
+        // Spacer + 用户卡
+        frame spacer { width = fill height = 300 }
+
+        frame user-card {
+            width = fill height = hug padding = 12 layout = horizontal gap = 10 align = center
+            fill = colors.gray-50 radius = radius.md stroke = [1, colors.gray-200]
+
+            frame avatar {
+                width = 32 height = 32 fill = colors.primary-100 radius = radius.full layout = vertical justify = center align = center
+                text "A" { size = 14, weight = bold, color = colors.primary-600 }
+            }
+            frame meta {
+                width = hug height = hug layout = vertical gap = 2
+                text "alice@e2e.test" { size = 12, weight = medium, color = colors.gray-800 }
+                text "普通用户"        { size = 11, weight = normal, color = colors.gray-500 }
+            }
+        }
+    }
+
+    // ---------- 主内容 ----------
+    frame main {
+        width   = fill
+        height  = fill
+        padding = [32, 40]
+        layout  = vertical
+        gap     = 28
+
+        // 顶栏
+        frame topbar {
+            width = fill height = hug layout = horizontal align = center justify = space-between
+
+            frame title-group {
+                width = hug height = hug layout = vertical gap = 4
+                text "监控看板" { size = 28, weight = bold, color = colors.gray-900 }
+                text "最近 7 天的调用与消耗趋势" { size = 14, weight = normal, color = colors.gray-500 }
+            }
+
+            frame actions {
+                width = hug height = hug layout = horizontal gap = 12 align = center
+
+                // 时间窗口切换
+                frame tabs {
+                    width = hug height = hug layout = horizontal align = center
+                    fill = colors.white radius = radius.md stroke = [1, colors.gray-300]
+
+                    frame tab1 { padding = [8, 14] text "1D" { size = 13, weight = medium, color = colors.gray-500 } }
+                    frame tab2 { padding = [8, 14] fill = colors.primary-50 text "7D" { size = 13, weight = semibold, color = colors.primary-600 } }
+                    frame tab3 { padding = [8, 14] text "30D" { size = 13, weight = medium, color = colors.gray-500 } }
+                    frame tab4 { padding = [8, 14] text "90D" { size = 13, weight = medium, color = colors.gray-500 } }
+                }
+
+                use button-primary("+ 新建 Key")
+            }
+        }
+
+        // 4 统计卡片
+        frame stats-grid {
+            width = fill height = hug layout = horizontal gap = 16
+
+            use stat-card("当前余额", "¥101.0400", "累计消耗 5.23 元", colors.primary-500)
+            use stat-card("7 天消耗",  "¥5.23",     "均 0.75 元/天",   colors.chart-3)
+            use stat-card("7 天请求",  "1,247",     "均 178 次/天",    colors.chart-4)
+            use stat-card("成功率",    "98.3%",     "失败 21 次",       colors.success)
+        }
+
+        // Tokens 趋势图（大）
+        frame chart-tokens {
+            width   = fill
+            height  = 340
+            padding = 24
+            fill    = colors.white
+            radius  = radius.lg
+            stroke  = [1, colors.gray-200]
+            layout  = vertical
+            gap     = 16
+
+            frame head {
+                width = fill height = hug layout = horizontal justify = space-between align = center
+                frame left {
+                    width = hug height = hug layout = vertical gap = 2
+                    text "Tokens 消耗趋势" { size = 16, weight = semibold, color = colors.gray-900 }
+                    text "按日聚合 prompt + completion" { size = 12, weight = normal, color = colors.gray-500 }
+                }
+                frame legend {
+                    width = hug height = hug layout = horizontal gap = 16 align = center
+                    frame l1 {
+                        width = hug height = hug layout = horizontal gap = 6 align = center
+                        frame d { width = 10 height = 10 fill = colors.chart-1 radius = 2 }
+                        text "Prompt"     { size = 12, weight = normal, color = colors.gray-600 }
+                    }
+                    frame l2 {
+                        width = hug height = hug layout = horizontal gap = 6 align = center
+                        frame d { width = 10 height = 10 fill = colors.chart-2 radius = 2 }
+                        text "Completion" { size = 12, weight = normal, color = colors.gray-600 }
+                    }
+                }
+            }
+
+            // 图形区（模拟折线图）
+            frame chart-canvas {
+                width  = fill
+                height = 240
+                fill   = colors.gray-50
+                radius = radius.md
+                padding = 20
+                layout = vertical
+                justify = end
+                gap = 0
+
+                // 伪折线：用 7 个柱子表示每日 prompt+completion
+                frame bars {
+                    width = fill height = 180 layout = horizontal align = end justify = space-between gap = 12
+
+                    frame d1 {
+                        width = fill height = hug layout = vertical align = center gap = 2
+                        frame stack { width = fill height = 130 layout = vertical justify = end
+                            frame c2 { width = fill height = 50 fill = colors.chart-2 radius = [2, 2, 0, 0] }
+                            frame c1 { width = fill height = 80 fill = colors.chart-1 }
+                        }
+                        text "04-12" { size = 11, weight = normal, color = colors.gray-500 }
+                    }
+                    frame d2 {
+                        width = fill height = hug layout = vertical align = center gap = 2
+                        frame stack { width = fill height = 100 layout = vertical justify = end
+                            frame c2 { width = fill height = 36 fill = colors.chart-2 radius = [2, 2, 0, 0] }
+                            frame c1 { width = fill height = 64 fill = colors.chart-1 }
+                        }
+                        text "04-13" { size = 11, weight = normal, color = colors.gray-500 }
+                    }
+                    frame d3 {
+                        width = fill height = hug layout = vertical align = center gap = 2
+                        frame stack { width = fill height = 150 layout = vertical justify = end
+                            frame c2 { width = fill height = 60 fill = colors.chart-2 radius = [2, 2, 0, 0] }
+                            frame c1 { width = fill height = 90 fill = colors.chart-1 }
+                        }
+                        text "04-14" { size = 11, weight = normal, color = colors.gray-500 }
+                    }
+                    frame d4 {
+                        width = fill height = hug layout = vertical align = center gap = 2
+                        frame stack { width = fill height = 170 layout = vertical justify = end
+                            frame c2 { width = fill height = 70 fill = colors.chart-2 radius = [2, 2, 0, 0] }
+                            frame c1 { width = fill height = 100 fill = colors.chart-1 }
+                        }
+                        text "04-15" { size = 11, weight = normal, color = colors.gray-500 }
+                    }
+                    frame d5 {
+                        width = fill height = hug layout = vertical align = center gap = 2
+                        frame stack { width = fill height = 120 layout = vertical justify = end
+                            frame c2 { width = fill height = 45 fill = colors.chart-2 radius = [2, 2, 0, 0] }
+                            frame c1 { width = fill height = 75 fill = colors.chart-1 }
+                        }
+                        text "04-16" { size = 11, weight = normal, color = colors.gray-500 }
+                    }
+                    frame d6 {
+                        width = fill height = hug layout = vertical align = center gap = 2
+                        frame stack { width = fill height = 150 layout = vertical justify = end
+                            frame c2 { width = fill height = 60 fill = colors.chart-2 radius = [2, 2, 0, 0] }
+                            frame c1 { width = fill height = 90 fill = colors.chart-1 }
+                        }
+                        text "04-17" { size = 11, weight = normal, color = colors.gray-500 }
+                    }
+                    frame d7 {
+                        width = fill height = hug layout = vertical align = center gap = 2
+                        frame stack { width = fill height = 180 layout = vertical justify = end
+                            frame c2 { width = fill height = 80 fill = colors.chart-2 radius = [2, 2, 0, 0] }
+                            frame c1 { width = fill height = 100 fill = colors.chart-1 }
+                        }
+                        text "04-18" { size = 11, weight = normal, color = colors.gray-500 }
+                    }
+                }
+            }
+        }
+
+        // 两列图表：按模型柱状 + 按能力环形
+        frame chart-row {
+            width = fill height = hug layout = horizontal gap = 16
+
+            frame chart-models {
+                width   = fill
+                height  = 340
+                padding = 24
+                fill    = colors.white
+                radius  = radius.lg
+                stroke  = [1, colors.gray-200]
+                layout  = vertical
+                gap     = 16
+
+                frame head {
+                    width = fill height = hug layout = vertical gap = 2
+                    text "按模型消耗（元）" { size = 16, weight = semibold, color = colors.gray-900 }
+                    text "Top 5 消耗模型" { size = 12, weight = normal, color = colors.gray-500 }
+                }
+
+                // 水平柱状图
+                frame bars {
+                    width = fill height = fill layout = vertical gap = 12
+
+                    frame row {
+                        width = fill height = hug layout = horizontal align = center gap = 12
+                        frame label { width = 130 text "claude-3-5-sonnet" { size = 12, weight = medium, color = colors.gray-700, family = "SF Mono" } }
+                        frame bar { width = 400 height = 24 fill = colors.chart-1 radius = 4 }
+                        text "¥3.99" { size = 12, weight = medium, color = colors.gray-700 }
+                    }
+                    frame row2 {
+                        width = fill height = hug layout = horizontal align = center gap = 12
+                        frame label { width = 130 text "gpt-4o-mini"       { size = 12, weight = medium, color = colors.gray-700, family = "SF Mono" } }
+                        frame bar { width = 150 height = 24 fill = colors.chart-2 radius = 4 }
+                        text "¥1.24" { size = 12, weight = medium, color = colors.gray-700 }
+                    }
+                    frame row3 {
+                        width = fill height = hug layout = horizontal align = center gap = 12
+                        frame label { width = 130 text "gpt-4o"            { size = 12, weight = medium, color = colors.gray-700, family = "SF Mono" } }
+                        frame bar { width = 80 height = 24 fill = colors.chart-3 radius = 4 }
+                        text "¥0.45" { size = 12, weight = medium, color = colors.gray-700 }
+                    }
+                    frame row4 {
+                        width = fill height = hug layout = horizontal align = center gap = 12
+                        frame label { width = 130 text "deepseek-v3"       { size = 12, weight = medium, color = colors.gray-700, family = "SF Mono" } }
+                        frame bar { width = 30 height = 24 fill = colors.chart-4 radius = 4 }
+                        text "¥0.12" { size = 12, weight = medium, color = colors.gray-700 }
+                    }
+                }
+            }
+
+            frame chart-capability {
+                width   = 440
+                height  = 340
+                padding = 24
+                fill    = colors.white
+                radius  = radius.lg
+                stroke  = [1, colors.gray-200]
+                layout  = vertical
+                gap     = 16
+
+                frame head {
+                    width = fill height = hug layout = vertical gap = 2
+                    text "按能力分布" { size = 16, weight = semibold, color = colors.gray-900 }
+                    text "请求数占比" { size = 12, weight = normal, color = colors.gray-500 }
+                }
+
+                // 伪环形（居中大圆 + 中心数字 + legend）
+                frame donut-area {
+                    width = fill height = fill layout = horizontal align = center gap = 16
+
+                    frame donut-wrap {
+                        width = 180 height = 180 layout = vertical justify = center align = center
+
+                        // 外圆
+                        shape bg { type = ellipse width = 180 height = 180 fill = colors.chart-1 }
+                        // 三等分：叠三个半透明 ellipse 模拟饼图（这里简化）
+                        shape inner { type = ellipse width = 110 height = 110 fill = colors.white position = absolute top = 35 left = 35 }
+
+                        frame center-label {
+                            position = absolute
+                            top = 70
+                            left = 50
+                            width = 80 height = 40 layout = vertical align = center
+                            text "1,247" { size = 18, weight = bold, color = colors.gray-900 }
+                            text "请求"  { size = 11, weight = normal, color = colors.gray-500 }
+                        }
+                    }
+
+                    frame legend {
+                        width = hug height = hug layout = vertical gap = 10
+
+                        frame lg1 {
+                            width = hug layout = horizontal gap = 8 align = center
+                            frame d { width = 10 height = 10 fill = colors.chart-1 radius = 2 }
+                            text "chat  · 86%"  { size = 12, weight = normal, color = colors.gray-700 }
+                        }
+                        frame lg2 {
+                            width = hug layout = horizontal gap = 8 align = center
+                            frame d { width = 10 height = 10 fill = colors.chart-2 radius = 2 }
+                            text "embed · 9%"  { size = 12, weight = normal, color = colors.gray-700 }
+                        }
+                        frame lg3 {
+                            width = hug layout = horizontal gap = 8 align = center
+                            frame d { width = 10 height = 10 fill = colors.chart-3 radius = 2 }
+                            text "image · 3%"  { size = 12, weight = normal, color = colors.gray-700 }
+                        }
+                        frame lg4 {
+                            width = hug layout = horizontal gap = 8 align = center
+                            frame d { width = 10 height = 10 fill = colors.chart-4 radius = 2 }
+                            text "其他  · 2%"  { size = 12, weight = normal, color = colors.gray-700 }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 近期调用表格
+        frame recent-calls {
+            width   = fill
+            height  = hug
+            padding = 24
+            fill    = colors.white
+            radius  = radius.lg
+            stroke  = [1, colors.gray-200]
+            layout  = vertical
+            gap     = 16
+
+            frame head {
+                width = fill height = hug layout = horizontal justify = space-between align = center
+
+                frame title {
+                    width = hug layout = vertical gap = 2
+                    text "最近调用" { size = 16, weight = semibold, color = colors.gray-900 }
+                    text "实时追踪 · 点击查看详情" { size = 12, weight = normal, color = colors.gray-500 }
+                }
+                use button-ghost("查看全部 →")
+            }
+
+            // 表头
+            frame th {
+                width = fill height = hug padding = [12, 0] layout = horizontal stroke = [1, colors.gray-100]
+
+                frame h1 { width = 160 text "时间"     { size = 11, weight = semibold, color = colors.gray-500, text-transform = uppercase, letter-spacing = 0.5 } }
+                frame h2 { width = 200 text "模型"     { size = 11, weight = semibold, color = colors.gray-500, text-transform = uppercase, letter-spacing = 0.5 } }
+                frame h3 { width = 80  text "能力"     { size = 11, weight = semibold, color = colors.gray-500, text-transform = uppercase, letter-spacing = 0.5 } }
+                frame h4 { width = 80  text "Prompt"   { size = 11, weight = semibold, color = colors.gray-500, text-transform = uppercase, letter-spacing = 0.5, align = right } }
+                frame h5 { width = 80  text "Output"   { size = 11, weight = semibold, color = colors.gray-500, text-transform = uppercase, letter-spacing = 0.5, align = right } }
+                frame h6 { width = 80  text "费用"     { size = 11, weight = semibold, color = colors.gray-500, text-transform = uppercase, letter-spacing = 0.5, align = right } }
+                frame h7 { width = fill text "状态"   { size = 11, weight = semibold, color = colors.gray-500, text-transform = uppercase, letter-spacing = 0.5 } }
+            }
+
+            frame r1 {
+                width = fill height = hug padding = [12, 0] layout = horizontal align = center
+                frame c1 { width = 160 text "14:32:18" { size = 12, weight = normal, color = colors.gray-600 } }
+                frame c2 { width = 200 text "claude-3-5-sonnet" { size = 12, weight = medium, color = colors.gray-800, family = "SF Mono" } }
+                frame c3 { width = 80  use badge-gray("chat") }
+                frame c4 { width = 80  text "2,137"  { size = 12, weight = normal, color = colors.gray-700 } }
+                frame c5 { width = 80  text "412"    { size = 12, weight = normal, color = colors.gray-700 } }
+                frame c6 { width = 80  text "¥0.013" { size = 12, weight = semibold, color = colors.gray-900 } }
+                frame c7 { width = fill  use badge-success("● success") }
+            }
+            frame r2 {
+                width = fill height = hug padding = [12, 0] layout = horizontal align = center
+                frame c1 { width = 160 text "14:31:52" { size = 12, weight = normal, color = colors.gray-600 } }
+                frame c2 { width = 200 text "gpt-4o-mini"        { size = 12, weight = medium, color = colors.gray-800, family = "SF Mono" } }
+                frame c3 { width = 80  use badge-gray("chat") }
+                frame c4 { width = 80  text "842"    { size = 12, weight = normal, color = colors.gray-700 } }
+                frame c5 { width = 80  text "128"    { size = 12, weight = normal, color = colors.gray-700 } }
+                frame c6 { width = 80  text "¥0.002" { size = 12, weight = semibold, color = colors.gray-900 } }
+                frame c7 { width = fill  use badge-success("● success") }
+            }
+            frame r3 {
+                width = fill height = hug padding = [12, 0] layout = horizontal align = center
+                frame c1 { width = 160 text "14:30:45" { size = 12, weight = normal, color = colors.gray-600 } }
+                frame c2 { width = 200 text "gpt-4o"              { size = 12, weight = medium, color = colors.gray-800, family = "SF Mono" } }
+                frame c3 { width = 80  use badge-gray("chat") }
+                frame c4 { width = 80  text "312"    { size = 12, weight = normal, color = colors.gray-700 } }
+                frame c5 { width = 80  text "-"      { size = 12, weight = normal, color = colors.gray-500 } }
+                frame c6 { width = 80  text "¥0.000" { size = 12, weight = semibold, color = colors.gray-500 } }
+                frame c7 { width = fill  use badge-danger("● rate_limit") }
+            }
+        }
+    }
+}

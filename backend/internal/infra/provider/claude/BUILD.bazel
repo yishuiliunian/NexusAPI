@@ -1,0 +1,23 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "claude",
+    srcs = [
+        "adaptor.go",
+        "list_models.go",
+    ],
+    importpath = "github.com/yishuiliunian/nexusapi/backend/internal/infra/provider/claude",
+    visibility = ["//backend:__subpackages__"],
+    deps = [
+        "//backend/internal/domain/relay",
+        "//backend/internal/infra/provider",
+        "//backend/pkg/httpclient",
+    ],
+)
+
+go_test(
+    name = "claude_test",
+    srcs = ["list_models_test.go"],
+    embed = [":claude"],
+    deps = ["//backend/internal/domain/relay"],
+)

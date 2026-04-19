@@ -1,0 +1,25 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "payment",
+    srcs = ["payment.go"],
+    importpath = "github.com/yishuiliunian/nexusapi/backend/internal/app/payment",
+    visibility = ["//backend:__subpackages__"],
+    deps = [
+        "//backend/internal/domain/billing",
+        "//backend/internal/domain/payment",
+        "//backend/pkg/errors",
+        "@com_github_google_uuid//:uuid",
+    ],
+)
+
+go_test(
+    name = "payment_test",
+    srcs = ["payment_test.go"],
+    embed = [":payment"],
+    deps = [
+        "//backend/internal/domain/billing",
+        "//backend/internal/domain/payment",
+        "//backend/pkg/errors",
+    ],
+)

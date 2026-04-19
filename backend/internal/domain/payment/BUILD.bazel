@@ -1,0 +1,8 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "payment",
+    srcs = ["payment.go"],
+    importpath = "github.com/yishuiliunian/nexusapi/backend/internal/domain/payment",
+    visibility = ["//backend:__subpackages__"],
+)

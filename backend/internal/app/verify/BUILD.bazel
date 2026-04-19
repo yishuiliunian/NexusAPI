@@ -1,0 +1,26 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "verify",
+    srcs = ["verify.go"],
+    importpath = "github.com/yishuiliunian/nexusapi/backend/internal/app/verify",
+    visibility = ["//backend:__subpackages__"],
+    deps = [
+        "//backend/internal/domain/user",
+        "//backend/internal/domain/verify",
+        "//backend/pkg/errors",
+        "//backend/pkg/mailer",
+        "@org_golang_x_crypto//bcrypt",
+    ],
+)
+
+go_test(
+    name = "verify_test",
+    srcs = ["verify_test.go"],
+    embed = [":verify"],
+    deps = [
+        "//backend/internal/domain/user",
+        "//backend/internal/domain/verify",
+        "//backend/pkg/errors",
+    ],
+)

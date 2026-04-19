@@ -1,0 +1,14 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "provider",
+    srcs = [
+        "client.go",
+        "registry.go",
+    ],
+    importpath = "github.com/yishuiliunian/nexusapi/backend/internal/infra/provider",
+    visibility = ["//backend:__subpackages__"],
+    deps = [
+        "//backend/internal/domain/relay",
+    ],
+)

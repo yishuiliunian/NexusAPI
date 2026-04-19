@@ -1,0 +1,51 @@
+# Bazel
+/bazel-*
+.bazelrc.local
+
+# Go
+/backend/bin/
+*.test
+*.out
+/backend/coverage.*
+
+# Node
+node_modules/
+.next/
+.turbo/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Env / secrets
+.env
+.env.local
+.env.*.local
+/deploy/.env
+
+# Build outputs
+dist/
+build-output/
+
+# Testing
+/coverage/
+*.lcov
+
+# Logs
+*.log
+
+# Dev runtime data
+/.tmp/
+/data/
+/traces/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm

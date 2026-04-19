@@ -1,0 +1,366 @@
+// User Billing · 充值页（纯按量计费）
+//
+// 定位：NexusAPI 只按量计费 —— 没有订阅套餐，余额消耗扣次。
+// 核心：激活码（Hero） + 余额充值 + 历史记录。
+
+include "./components.pastel"
+
+canvas "billing" {
+    width      = 1440
+    height     = 1500
+    background = colors.gray-50
+}
+
+frame shell {
+    width = fill height = fill layout = horizontal
+
+    // ---------- Sidebar ----------
+    frame sidebar {
+        width = 240 height = fill fill = colors.white stroke = [1, colors.gray-200]
+        layout = vertical padding = [24, 16] gap = 8
+
+        frame logo {
+            width = fill layout = horizontal gap = 10 align = center padding = [0, 8, 16, 8]
+            frame icon { width = 28 height = 28 fill = colors.primary-600 radius = radius.md layout = vertical justify = center align = center
+                text "N" { size = 16, weight = bold, color = colors.white } }
+            text "NexusAPI" { size = 18, weight = bold, color = colors.gray-900 }
+        }
+
+        text "主要" { size = 11, weight = medium, color = colors.gray-400, text-transform = uppercase }
+        frame i1 { width = fill padding = [10, 16] text "监控看板" { size = 14, weight = normal, color = colors.gray-600 } }
+        frame i2 { width = fill padding = [10, 16] text "API Keys" { size = 14, weight = normal, color = colors.gray-600 } }
+
+        text "账户" { size = 11, weight = medium, color = colors.gray-400, text-transform = uppercase }
+        frame active {
+            width = fill padding = [10, 12] layout = horizontal gap = 10 align = center
+            fill = colors.primary-50 radius = radius.md
+            frame d { width = 4 height = 20 fill = colors.primary-600 radius = 2 }
+            text "充值" { size = 14, weight = semibold, color = colors.primary-600 }
+        }
+        frame i4 { width = fill padding = [10, 16] text "账户设置" { size = 14, weight = normal, color = colors.gray-600 } }
+    }
+
+    // ---------- Main ----------
+    frame main {
+        width = fill height = fill padding = [32, 40] layout = vertical gap = 24
+
+        frame topbar {
+            width = fill layout = vertical gap = 4
+            text "充值" { size = 28, weight = bold, color = colors.gray-900 }
+            text "按量计费 · 使用激活码或在线充值补充余额。" { size = 14, weight = normal, color = colors.gray-500 }
+        }
+
+        // 余额 + 本月用量
+        frame balance-row {
+            width = fill layout = horizontal gap = 16
+
+            frame balance {
+                width = fill padding = 28
+                fill = linear-gradient(135, #2563EB, #60A5FA) radius = radius.lg
+                layout = vertical gap = 14
+
+                text "当前余额" { size = 12, weight = medium, color = #FFFFFFCC, text-transform = uppercase, letter-spacing = 1.0 }
+
+                frame amount {
+                    width = fill layout = horizontal align = end gap = 8
+                    text "¥"         { size = 20, weight = medium, color = #FFFFFFEE }
+                    text "101.0400"  { size = 48, weight = bold, color = colors.white, line-height = 52 }
+                }
+
+                frame meta {
+                    width = fill layout = horizontal gap = 24
+                    frame m1 { width = hug layout = vertical gap = 2
+                        text "累计充值" { size = 11, weight = normal, color = #FFFFFFAA, text-transform = uppercase, letter-spacing = 1.0 }
+                        text "¥150.00"  { size = 14, weight = semibold, color = colors.white }
+                    }
+                    frame m2 { width = hug layout = vertical gap = 2
+                        text "累计消耗" { size = 11, weight = normal, color = #FFFFFFAA, text-transform = uppercase, letter-spacing = 1.0 }
+                        text "¥48.96"   { size = 14, weight = semibold, color = colors.white }
+                    }
+                    frame m3 { width = hug layout = vertical gap = 2
+                        text "本月消耗" { size = 11, weight = normal, color = #FFFFFFAA, text-transform = uppercase, letter-spacing = 1.0 }
+                        text "¥5.23"    { size = 14, weight = semibold, color = colors.white }
+                    }
+                }
+            }
+
+            frame usage {
+                width = 380 padding = 24
+                fill = colors.white radius = radius.lg stroke = [1, colors.gray-200]
+                layout = vertical gap = 12
+
+                text "本月 tokens" { size = 12, weight = medium, color = colors.gray-500, text-transform = uppercase, letter-spacing = 1.0 }
+
+                frame value {
+                    width = fill layout = horizontal align = end gap = 8
+                    text "5,217,314" { size = 32, weight = bold, color = colors.gray-900 }
+                    text "tokens"    { size = 14, weight = normal, color = colors.gray-500 }
+                }
+
+                frame split {
+                    width = fill height = 8 radius = radius.full layout = horizontal
+                    frame a { width = 320 height = 8 fill = colors.chart-1 radius = [4, 0, 0, 4] }
+                    frame b { width = 60  height = 8 fill = colors.chart-2 radius = [0, 4, 4, 0] }
+                }
+
+                frame legend {
+                    width = fill layout = horizontal gap = 16
+                    frame l1 { width = hug layout = horizontal gap = 6 align = center
+                        frame d { width = 8 height = 8 fill = colors.chart-1 radius = 2 }
+                        text "Prompt 4.5M"     { size = 11, weight = normal, color = colors.gray-600 }
+                    }
+                    frame l2 { width = hug layout = horizontal gap = 6 align = center
+                        frame d { width = 8 height = 8 fill = colors.chart-2 radius = 2 }
+                        text "Completion 717k" { size = 11, weight = normal, color = colors.gray-600 }
+                    }
+                }
+            }
+        }
+
+        // ---------- 激活码（Hero） ----------
+        frame redeem-section {
+            width = fill padding = 32
+            fill = colors.white radius = radius.lg stroke = [1, colors.gray-200]
+            shadow = shadow.sm
+            layout = vertical gap = 20
+
+            frame head {
+                width = fill layout = horizontal align = center gap = 16
+
+                frame icon-box {
+                    width = 56 height = 56 fill = colors.primary-50 radius = radius.md
+                    layout = vertical justify = center align = center
+                    text "🎟" { size = 28, weight = normal, color = colors.primary-600 }
+                }
+
+                frame title-col {
+                    width = hug layout = vertical gap = 4
+                    text "激活码兑换" { size = 20, weight = semibold, color = colors.gray-900 }
+                    text "粘贴从运营活动 / 合作渠道 / 社区获得的激活码，配额即时到账。" { size = 13, weight = normal, color = colors.gray-500 }
+                }
+            }
+
+            frame form {
+                width = fill layout = horizontal gap = 12 align = end
+
+                frame input-col {
+                    width = fill layout = vertical gap = 6
+                    text "激活码" { size = 12, weight = medium, color = colors.gray-700 }
+
+                    frame big-input {
+                        width = fill height = 56 padding = [14, 20]
+                        fill = colors.gray-50 radius = radius.md stroke = border.focus
+                        layout = horizontal align = center
+
+                        text "NEXUS-DY-7X2K9A4P" { size = 18, weight = semibold, color = colors.gray-900, family = "SF Mono", letter-spacing = 1.0 }
+                    }
+                }
+
+                frame submit-btn {
+                    padding = [14, 32] fill = colors.primary-600 radius = radius.md
+                    layout = horizontal align = center justify = center
+                    shadow = shadow.sm
+
+                    text "激活 →" { size = 15, weight = semibold, color = colors.white }
+                }
+            }
+
+            frame tips {
+                width = fill padding = 14
+                fill = colors.info-bg radius = radius.md
+                layout = horizontal gap = 10 align = start
+
+                text "💡" { size = 16, weight = normal, color = #0E7490 }
+                text "每张激活码只能使用一次 · 不限账户使用次数由发行方设置 · 到账后永久有效" {
+                    size = 12, weight = normal, color = #0E7490, wrap = true
+                }
+            }
+        }
+
+        // ---------- 余额充值 ----------
+        frame topup-section {
+            width = fill padding = 24
+            fill = colors.white radius = radius.lg stroke = [1, colors.gray-200]
+            layout = vertical gap = 20
+
+            frame head {
+                width = fill layout = vertical gap = 4
+                text "在线充值" { size = 18, weight = semibold, color = colors.gray-900 }
+                text "通过 Stripe 快速充值，支持 Visa / MasterCard / 支付宝。到账后永久有效。" { size = 13, weight = normal, color = colors.gray-500 }
+            }
+
+            frame amounts {
+                width = fill layout = horizontal gap = 12
+
+                frame opt1 {
+                    width = fill height = 90 padding = 16
+                    fill = colors.white radius = radius.md stroke = [1, colors.gray-300]
+                    layout = vertical gap = 4 justify = center align = center
+                    text "¥50"     { size = 22, weight = bold, color = colors.gray-900 }
+                    text "$7 USD" { size = 11, weight = normal, color = colors.gray-500 }
+                    text "适合轻度使用" { size = 10, weight = normal, color = colors.gray-400 }
+                }
+
+                frame opt2 {
+                    width = fill height = 90 padding = 16
+                    fill = colors.primary-50 radius = radius.md stroke = border.focus
+                    layout = vertical gap = 4 justify = center align = center
+                    text "¥100"    { size = 22, weight = bold, color = colors.primary-600 }
+                    text "$14 USD" { size = 11, weight = normal, color = colors.primary-600 }
+                    text "推荐金额" { size = 10, weight = medium, color = colors.primary-600 }
+
+                    frame badge-abs {
+                        position = absolute  top = 8 right = 8
+                        padding = [2, 6] fill = colors.primary-600 radius = radius.full
+                        text "推荐" { size = 10, weight = bold, color = colors.white }
+                    }
+                }
+
+                frame opt3 {
+                    width = fill height = 90 padding = 16
+                    fill = colors.white radius = radius.md stroke = [1, colors.gray-300]
+                    layout = vertical gap = 4 justify = center align = center
+                    text "¥200"    { size = 22, weight = bold, color = colors.gray-900 }
+                    text "$28 USD" { size = 11, weight = normal, color = colors.gray-500 }
+                    text "团队常用" { size = 10, weight = normal, color = colors.gray-400 }
+                }
+
+                frame opt4 {
+                    width = fill height = 90 padding = 16
+                    fill = colors.white radius = radius.md stroke = [1, colors.gray-300]
+                    layout = vertical gap = 4 justify = center align = center
+                    text "¥500"    { size = 22, weight = bold, color = colors.gray-900 }
+                    text "$70 USD" { size = 11, weight = normal, color = colors.gray-500 }
+                    text "大额优惠" { size = 10, weight = normal, color = colors.gray-400 }
+                }
+
+                frame opt-custom {
+                    width = fill height = 90 padding = 16
+                    fill = colors.white radius = radius.md stroke = [1, colors.gray-300]
+                    layout = vertical gap = 4 justify = center align = center
+                    stroke-dash = [6, 4]
+                    text "自定义" { size = 14, weight = medium, color = colors.gray-500 }
+                    text "输入金额" { size = 11, weight = normal, color = colors.gray-400 }
+                }
+            }
+
+            frame pay-btn-row {
+                width = fill layout = horizontal justify = space-between align = center
+
+                frame left-text {
+                    width = hug layout = horizontal gap = 6 align = center
+                    text "✓" { size = 13, weight = bold, color = colors.success }
+                    text "永久有效 · 无过期"       { size = 12, weight = normal, color = colors.gray-500 }
+                    frame dot { width = 3 height = 3 fill = colors.gray-400 radius = radius.full }
+                    text "发票可开"                 { size = 12, weight = normal, color = colors.gray-500 }
+                }
+
+                use button-primary("前往 Stripe 支付 →")
+            }
+        }
+
+        // ---------- 历史记录 ----------
+        frame history-section {
+            width = fill
+            fill = colors.white radius = radius.lg stroke = [1, colors.gray-200]
+            layout = vertical
+
+            frame head {
+                width = fill padding = 20 stroke = [1, colors.gray-100]
+                layout = horizontal justify = space-between align = center
+
+                frame col {
+                    width = hug layout = vertical gap = 4
+                    text "最近记录" { size = 16, weight = semibold, color = colors.gray-900 }
+                    text "充值 / 激活码使用历史" { size = 12, weight = normal, color = colors.gray-500 }
+                }
+
+                frame tabs {
+                    width = hug layout = horizontal gap = 4
+                    frame tab-active { padding = [6, 12] fill = colors.gray-100 radius = radius.md text "全部" { size = 12, weight = medium, color = colors.gray-800 } }
+                    frame tab1 { padding = [6, 12] text "激活码" { size = 12, weight = normal, color = colors.gray-500 } }
+                    frame tab2 { padding = [6, 12] text "充值"   { size = 12, weight = normal, color = colors.gray-500 } }
+                }
+            }
+
+            frame r1 {
+                width = fill padding = [16, 20]
+                stroke = [1, colors.gray-100]
+                layout = horizontal align = center gap = 16
+
+                frame icon-circle { width = 36 height = 36 fill = colors.primary-50 radius = radius.full layout = vertical justify = center align = center
+                    text "🎟" { size = 18, weight = normal, color = colors.primary-600 }
+                }
+                frame col {
+                    width = fill layout = vertical gap = 2
+                    text "激活码兑换 · NEXUS-DY-7X2K9A4P" { size = 14, weight = semibold, color = colors.gray-900 }
+                    text "抖音合作活动 · 5 分钟前"         { size = 12, weight = normal, color = colors.gray-500 }
+                }
+                frame amount {
+                    width = hug layout = vertical gap = 2 align = end
+                    text "+ ¥50.0000" { size = 15, weight = bold, color = colors.success }
+                    use badge-success("已到账")
+                }
+            }
+
+            frame r2 {
+                width = fill padding = [16, 20]
+                stroke = [1, colors.gray-100]
+                layout = horizontal align = center gap = 16
+
+                frame icon-circle { width = 36 height = 36 fill = #8B5CF61A radius = radius.full layout = vertical justify = center align = center
+                    text "💳" { size = 16, weight = normal, color = #8B5CF6 }
+                }
+                frame col {
+                    width = fill layout = vertical gap = 2
+                    text "Stripe 充值 · ¥100.00"     { size = 14, weight = semibold, color = colors.gray-900 }
+                    text "order_3f9k2M1j · 2 小时前" { size = 12, weight = normal, color = colors.gray-500, family = "SF Mono" }
+                }
+                frame amount {
+                    width = hug layout = vertical gap = 2 align = end
+                    text "+ ¥100.0000" { size = 15, weight = bold, color = colors.success }
+                    use badge-success("已到账")
+                }
+            }
+
+            frame r3 {
+                width = fill padding = [16, 20]
+                stroke = [1, colors.gray-100]
+                layout = horizontal align = center gap = 16
+
+                frame icon-circle { width = 36 height = 36 fill = colors.primary-50 radius = radius.full layout = vertical justify = center align = center
+                    text "🎟" { size = 18, weight = normal, color = colors.primary-600 }
+                }
+                frame col {
+                    width = fill layout = vertical gap = 2
+                    text "激活码兑换 · NEXUS-WELCOME-X7K9Q" { size = 14, weight = semibold, color = colors.gray-900 }
+                    text "新用户欢迎 · 3 天前"                { size = 12, weight = normal, color = colors.gray-500 }
+                }
+                frame amount {
+                    width = hug layout = vertical gap = 2 align = end
+                    text "+ ¥50.0000" { size = 15, weight = bold, color = colors.success }
+                    use badge-success("已到账")
+                }
+            }
+
+            frame r4 {
+                width = fill padding = [16, 20]
+                layout = horizontal align = center gap = 16
+
+                frame icon-circle { width = 36 height = 36 fill = colors.gray-100 radius = radius.full layout = vertical justify = center align = center
+                    text "🧾" { size = 16, weight = normal, color = colors.gray-500 }
+                }
+                frame col {
+                    width = fill layout = vertical gap = 2
+                    text "本月按量消耗（运行统计）" { size = 14, weight = semibold, color = colors.gray-900 }
+                    text "1,247 次调用 · 4 月累计"  { size = 12, weight = normal, color = colors.gray-500 }
+                }
+                frame amount {
+                    width = hug layout = vertical gap = 2 align = end
+                    text "- ¥5.2316"   { size = 15, weight = bold, color = colors.gray-800 }
+                    text "5.2M tokens" { size = 11, weight = normal, color = colors.gray-500 }
+                }
+            }
+        }
+    }
+}

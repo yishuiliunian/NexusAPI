@@ -1,0 +1,22 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "stripe",
+    srcs = ["stripe.go"],
+    importpath = "github.com/yishuiliunian/nexusapi/backend/internal/infra/payment/stripe",
+    visibility = ["//backend:__subpackages__"],
+    deps = [
+        "//backend/internal/app/payment",
+        "//backend/internal/domain/payment",
+    ],
+)
+
+go_test(
+    name = "stripe_test",
+    srcs = ["stripe_test.go"],
+    embed = [":stripe"],
+    deps = [
+        "//backend/internal/app/payment",
+        "//backend/internal/domain/payment",
+    ],
+)

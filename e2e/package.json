@@ -1,0 +1,30 @@
+{
+  "name": "@nexusapi/e2e",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "echo 'e2e has no build step'",
+    "test": "playwright test",
+    "test:user": "playwright test --project=user",
+    "test:admin": "playwright test --project=admin",
+    "test:integration": "playwright test --project=integration",
+    "test:multi-browser": "MULTI_BROWSER=1 playwright test",
+    "test:a11y": "playwright test tests/a11y",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui",
+    "install-browsers": "playwright install chromium --with-deps",
+    "install-all-browsers": "playwright install chromium firefox webkit --with-deps",
+    "clean": "rm -rf .tmp test-results playwright-report"
+  },
+  "dependencies": {
+    "@axe-core/playwright": "^4.10.2",
+    "undici": "^6.21.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.0",
+    "@types/node": "22.10.2",
+    "typescript": "5.7.3"
+  }
+}

@@ -1,0 +1,340 @@
+// Playground · AI 对话交互界面
+//
+// 布局：
+//   左 280 侧栏（导航）
+//   中央对话区（消息流）
+//   右 320 配置面板（模型/参数/key）
+//
+// 重点体现：流式对话、可调参数、上下文可见
+
+include "./components.pastel"
+
+canvas "playground" {
+    width      = 1600
+    height     = 1100
+    background = colors.gray-50
+}
+
+frame shell {
+    width  = fill
+    height = fill
+    layout = horizontal
+
+    // ---------- Sidebar ----------
+    frame sidebar {
+        width = 240 height = fill fill = colors.white stroke = [1, colors.gray-200]
+        layout = vertical padding = [24, 16] gap = 8
+
+        frame logo {
+            width = fill layout = horizontal gap = 10 align = center padding = [0, 8, 16, 8]
+            frame icon { width = 28 height = 28 fill = colors.primary-600 radius = radius.md layout = vertical justify = center align = center
+                text "N" { size = 16, weight = bold, color = colors.white } }
+            text "NexusAPI" { size = 18, weight = bold, color = colors.gray-900 }
+        }
+
+        text "主要" { size = 11, weight = medium, color = colors.gray-400, text-transform = uppercase }
+
+        frame i1 { width = fill padding = [10, 16] text "监控看板" { size = 14, weight = normal, color = colors.gray-600 } }
+        frame i2 { width = fill padding = [10, 16] text "API Keys" { size = 14, weight = normal, color = colors.gray-600 } }
+
+        frame active {
+            width = fill padding = [10, 12] layout = horizontal gap = 10 align = center
+            fill = colors.primary-50 radius = radius.md
+            frame d { width = 4 height = 20 fill = colors.primary-600 radius = 2 }
+            text "Playground" { size = 14, weight = semibold, color = colors.primary-600 }
+        }
+
+        frame i3 { width = fill padding = [10, 16] text "调用日志" { size = 14, weight = normal, color = colors.gray-600 } }
+    }
+
+    // ---------- 中央对话区 ----------
+    frame center {
+        width = fill height = fill layout = vertical
+
+        // 顶栏：模型信息
+        frame topbar {
+            width = fill height = 64 padding = [16, 24]
+            fill = colors.white stroke = [1, colors.gray-200]
+            layout = horizontal align = center justify = space-between
+
+            frame title {
+                width = hug layout = horizontal gap = 12 align = center
+
+                frame model-pill {
+                    width = hug padding = [6, 12] fill = colors.gray-100 radius = radius.full
+                    layout = horizontal gap = 8 align = center
+
+                    shape dot { type = ellipse width = 6 height = 6 fill = colors.success }
+                    text "gpt-4o-mini" { size = 13, weight = medium, color = colors.gray-800, family = "SF Mono" }
+                }
+
+                text "Playground" { size = 18, weight = semibold, color = colors.gray-900 }
+                text "测试 & 调试 AI 模型调用" { size = 13, weight = normal, color = colors.gray-500 }
+            }
+
+            frame actions {
+                width = hug layout = horizontal gap = 10
+                use button-ghost("清空")
+                use button-secondary("分享对话")
+            }
+        }
+
+        // 对话流
+        frame chat {
+            width = fill height = fill padding = [32, 80]
+            layout = vertical gap = 20
+
+            // user 消息
+            frame user-msg {
+                width = fill layout = horizontal gap = 12 justify = end
+
+                frame bubble {
+                    width = 600 height = hug padding = 14
+                    fill = colors.primary-600 radius = [12, 12, 2, 12]
+                    text "帮我用 Go 写一个简单的 HTTP 服务器，监听 8080，返回 Hello World。" {
+                        size = 14, weight = normal, color = colors.white, wrap = true
+                    }
+                }
+
+                frame avatar {
+                    width = 32 height = 32 fill = colors.primary-100 radius = radius.full layout = vertical justify = center align = center
+                    text "A" { size = 14, weight = bold, color = colors.primary-600 }
+                }
+            }
+
+            // assistant 消息
+            frame assistant-msg {
+                width = fill layout = horizontal gap = 12
+
+                frame avatar {
+                    width = 32 height = 32 fill = colors.gray-900 radius = radius.full layout = vertical justify = center align = center
+                    text "AI" { size = 11, weight = bold, color = colors.white }
+                }
+
+                frame bubble {
+                    width = 720 layout = vertical gap = 10
+                    padding = 16 fill = colors.white radius = [12, 12, 12, 2] stroke = [1, colors.gray-200]
+
+                    text "这是一个最小的 Go HTTP 服务器实现：" {
+                        size = 14, weight = normal, color = colors.gray-800, wrap = true
+                    }
+
+                    frame code {
+                        width = fill height = hug padding = [14, 16]
+                        fill = #0F172A radius = radius.md
+                        layout = vertical gap = 2
+
+                        text "package main"                                  { size = 12, weight = normal, color = #EC4899, family = "SF Mono" }
+                        text ""                                              { size = 12, weight = normal, color = colors.white, family = "SF Mono" }
+                        text "import ("                                      { size = 12, weight = normal, color = #EC4899, family = "SF Mono" }
+                        text "    \"fmt\""                                   { size = 12, weight = normal, color = #84CC16, family = "SF Mono" }
+                        text "    \"net/http\""                              { size = 12, weight = normal, color = #84CC16, family = "SF Mono" }
+                        text ")"                                             { size = 12, weight = normal, color = #EC4899, family = "SF Mono" }
+                        text ""                                              { size = 12, weight = normal, color = colors.white, family = "SF Mono" }
+                        text "func main() {"                                 { size = 12, weight = normal, color = #60A5FA, family = "SF Mono" }
+                        text "    http.HandleFunc(\"/\", func(w http.Res..." { size = 12, weight = normal, color = #E2E8F0, family = "SF Mono" }
+                        text "        fmt.Fprintln(w, \"Hello World\")"      { size = 12, weight = normal, color = #E2E8F0, family = "SF Mono" }
+                        text "    })"                                        { size = 12, weight = normal, color = #E2E8F0, family = "SF Mono" }
+                        text "    http.ListenAndServe(\":8080\", nil)"      { size = 12, weight = normal, color = #E2E8F0, family = "SF Mono" }
+                        text "}"                                             { size = 12, weight = normal, color = #60A5FA, family = "SF Mono" }
+                    }
+
+                    text "保存为 main.go，go run main.go 即可启动。访问 http://localhost:8080 就能看到 Hello World。" {
+                        size = 14, weight = normal, color = colors.gray-800, wrap = true
+                    }
+
+                    // 调用元数据
+                    frame meta {
+                        width = fill height = hug layout = horizontal gap = 12 align = center padding = [8, 0, 0, 0]
+                        stroke = [1, colors.gray-100]
+
+                        text "⏱ 1.2s"     { size = 11, weight = normal, color = colors.gray-500 }
+                        text "•"            { size = 11, weight = normal, color = colors.gray-400 }
+                        text "128 tokens"   { size = 11, weight = normal, color = colors.gray-500 }
+                        text "•"            { size = 11, weight = normal, color = colors.gray-400 }
+                        text "¥0.002"       { size = 11, weight = medium, color = colors.gray-700 }
+
+                        frame spacer { width = fill }
+
+                        use button-ghost("📋")
+                        use button-ghost("🔄")
+                        use button-ghost("👎")
+                    }
+                }
+            }
+
+            // 正在回复中（流式）
+            frame streaming {
+                width = fill layout = horizontal gap = 12
+
+                frame avatar {
+                    width = 32 height = 32 fill = colors.gray-900 radius = radius.full layout = vertical justify = center align = center
+                    text "AI" { size = 11, weight = bold, color = colors.white }
+                }
+
+                frame bubble {
+                    width = hug padding = 16 fill = colors.white radius = [12, 12, 12, 2]
+                    stroke = [1, colors.gray-200]
+                    layout = horizontal gap = 4 align = center
+
+                    shape d1 { type = ellipse width = 6 height = 6 fill = colors.gray-400 }
+                    shape d2 { type = ellipse width = 6 height = 6 fill = colors.gray-400 }
+                    shape d3 { type = ellipse width = 6 height = 6 fill = colors.gray-400 }
+                }
+            }
+        }
+
+        // 输入框
+        frame input-area {
+            width = fill height = hug padding = [20, 80, 24, 80]
+            fill = colors.white stroke = [1, colors.gray-200]
+
+            frame box {
+                width = fill height = 100 padding = [14, 16]
+                fill = colors.gray-50 radius = radius.lg stroke = [1, colors.gray-200]
+                layout = vertical justify = space-between
+
+                text "向 gpt-4o-mini 发送消息..." { size = 14, weight = normal, color = colors.gray-400 }
+
+                frame bottom {
+                    width = fill layout = horizontal justify = space-between align = center
+
+                    frame left {
+                        width = hug layout = horizontal gap = 8
+                        use badge-gray("📎 附件")
+                        use badge-gray("🖼️ 图片")
+                        use badge-gray("stream")
+                    }
+
+                    frame right {
+                        width = hug layout = horizontal gap = 10 align = center
+                        text "⌘ + ↵" { size = 11, weight = normal, color = colors.gray-400 }
+                        use button-primary("发送 →")
+                    }
+                }
+            }
+        }
+    }
+
+    // ---------- 右侧参数面板 ----------
+    frame config-panel {
+        width  = 340
+        height = fill
+        fill   = colors.white
+        stroke = [1, colors.gray-200]
+        layout = vertical
+        padding = 24
+        gap    = 24
+
+        text "参数" { size = 16, weight = semibold, color = colors.gray-900 }
+
+        // API Key
+        frame sec-key {
+            width = fill layout = vertical gap = 8
+            text "API Key" { size = 12, weight = medium, color = colors.gray-700 }
+            use input-field-filled("sk-nexus-7Win...0LU")
+            text "选择一个密钥，或前往 API Keys 新建" { size = 11, weight = normal, color = colors.gray-500 }
+        }
+
+        frame divider1 { width = fill height = 1 fill = colors.gray-200 }
+
+        // Model
+        frame sec-model {
+            width = fill layout = vertical gap = 8
+            text "模型" { size = 12, weight = medium, color = colors.gray-700 }
+
+            frame dropdown {
+                width = fill height = 40 padding = [10, 14]
+                fill = colors.white radius = radius.md stroke = [1, colors.gray-300]
+                layout = horizontal align = center justify = space-between
+
+                frame left {
+                    width = hug layout = horizontal gap = 8 align = center
+                    shape dot { type = ellipse width = 6 height = 6 fill = colors.success }
+                    text "gpt-4o-mini" { size = 13, weight = medium, color = colors.gray-900, family = "SF Mono" }
+                }
+                text "▾" { size = 12, weight = normal, color = colors.gray-500 }
+            }
+
+            // 推荐模型
+            frame pills {
+                width = fill layout = horizontal gap = 6
+                use badge-gray("gpt-4o")
+                use badge-gray("claude-3.5")
+                use badge-gray("deepseek-v3")
+            }
+        }
+
+        frame divider2 { width = fill height = 1 fill = colors.gray-200 }
+
+        // Temperature
+        frame sec-temp {
+            width = fill layout = vertical gap = 10
+            frame head {
+                width = fill layout = horizontal justify = space-between align = center
+                text "Temperature" { size = 12, weight = medium, color = colors.gray-700 }
+                text "0.7"         { size = 13, weight = semibold, color = colors.gray-900, family = "SF Mono" }
+            }
+            frame track {
+                width = fill height = 6 fill = colors.gray-200 radius = radius.full
+                frame fill-bar { width = 200 height = 6 fill = colors.primary-600 radius = radius.full }
+            }
+            text "创造性 · 值越高输出越随机" { size = 11, weight = normal, color = colors.gray-500 }
+        }
+
+        // Max Tokens
+        frame sec-max {
+            width = fill layout = vertical gap = 10
+            frame head {
+                width = fill layout = horizontal justify = space-between align = center
+                text "Max Tokens" { size = 12, weight = medium, color = colors.gray-700 }
+                text "2048"       { size = 13, weight = semibold, color = colors.gray-900, family = "SF Mono" }
+            }
+            frame track {
+                width = fill height = 6 fill = colors.gray-200 radius = radius.full
+                frame fill-bar { width = 80 height = 6 fill = colors.primary-600 radius = radius.full }
+            }
+        }
+
+        // Top P
+        frame sec-topp {
+            width = fill layout = vertical gap = 10
+            frame head {
+                width = fill layout = horizontal justify = space-between align = center
+                text "Top P" { size = 12, weight = medium, color = colors.gray-700 }
+                text "1.0"  { size = 13, weight = semibold, color = colors.gray-900, family = "SF Mono" }
+            }
+            frame track {
+                width = fill height = 6 fill = colors.gray-200 radius = radius.full
+                frame fill-bar { width = 270 height = 6 fill = colors.primary-600 radius = radius.full }
+            }
+        }
+
+        frame divider3 { width = fill height = 1 fill = colors.gray-200 }
+
+        // 本次消耗
+        frame usage {
+            width = fill padding = 14 layout = vertical gap = 6
+            fill = colors.gray-50 radius = radius.md
+
+            text "本次会话消耗" { size = 11, weight = medium, color = colors.gray-500, text-transform = uppercase, letter-spacing = 0.5 }
+
+            frame row {
+                width = fill layout = horizontal gap = 20
+
+                frame c1 { width = hug layout = vertical gap = 2
+                    text "3"      { size = 18, weight = bold, color = colors.gray-900 }
+                    text "请求"   { size = 10, weight = normal, color = colors.gray-500 }
+                }
+                frame c2 { width = hug layout = vertical gap = 2
+                    text "412"    { size = 18, weight = bold, color = colors.gray-900 }
+                    text "tokens" { size = 10, weight = normal, color = colors.gray-500 }
+                }
+                frame c3 { width = hug layout = vertical gap = 2
+                    text "¥0.006" { size = 18, weight = bold, color = colors.primary-600, family = "SF Mono" }
+                    text "费用"    { size = 10, weight = normal, color = colors.gray-500 }
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,42 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "passthrough",
+    srcs = [
+        "gemini_resolver.go",
+        "normalize.go",
+        "passthrough.go",
+        "stream_inject.go",
+    ],
+    importpath = "github.com/yishuiliunian/nexusapi/backend/internal/interface/http/passthrough",
+    visibility = ["//backend:__subpackages__"],
+    deps = [
+        "//backend/internal/app/billing",
+        "//backend/internal/app/keys",
+        "//backend/internal/app/relay",
+        "//backend/internal/domain/billing",
+        "//backend/internal/domain/channel",
+        "//backend/internal/interface/http/middleware",
+        "//backend/pkg/errors",
+        "//backend/pkg/httperr",
+        "//backend/pkg/proxy",
+        "@com_github_gin_gonic_gin//:gin",
+    ],
+)
+
+go_test(
+    name = "passthrough_test",
+    srcs = [
+        "gemini_resolver_test.go",
+        "helpers_test.go",
+        "normalize_test.go",
+        "stream_inject_test.go",
+    ],
+    embed = [":passthrough"],
+    deps = [
+        "//backend/internal/domain/channel",
+        "//backend/pkg/errors",
+        "//backend/pkg/proxy",
+        "@com_github_gin_gonic_gin//:gin",
+    ],
+)

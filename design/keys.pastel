@@ -1,0 +1,248 @@
+// API Keys 管理页
+//
+// 布局：侧边栏（复用）+ 主区域
+// 重点：
+//   - 新建 Key 的卡片（表单）
+//   - 密钥列表表格（前缀/后缀/权限/状态/使用量/创建时间）
+//   - 新建后密钥展示（一次性）
+
+include "./components.pastel"
+
+canvas "keys" {
+    width      = 1440
+    height     = 1200
+    background = colors.gray-50
+}
+
+frame shell {
+    width  = fill
+    height = fill
+    layout = horizontal
+
+    // ---------- Sidebar (缩略版) ----------
+    frame sidebar {
+        width = 240 height = fill fill = colors.white stroke = [1, colors.gray-200]
+        layout = vertical padding = [24, 16] gap = 8
+
+        frame logo {
+            width = fill height = hug layout = horizontal gap = 10 align = center padding = [0, 8, 16, 8]
+            frame icon { width = 28 height = 28 fill = colors.primary-600 radius = radius.md layout = vertical justify = center align = center
+                text "N" { size = 16, weight = bold, color = colors.white } }
+            text "NexusAPI" { size = 18, weight = bold, color = colors.gray-900 }
+        }
+
+        text "主要" { size = 11, weight = medium, color = colors.gray-400, text-transform = uppercase }
+
+        frame dashboard { width = fill padding = [10, 16] layout = horizontal gap = 10 text "监控看板" { size = 14, weight = normal, color = colors.gray-600 } }
+
+        frame active {
+            width = fill padding = [10, 12] layout = horizontal gap = 10 align = center
+            fill = colors.primary-50 radius = radius.md
+            frame d { width = 4 height = 20 fill = colors.primary-600 radius = 2 }
+            text "API Keys" { size = 14, weight = semibold, color = colors.primary-600 }
+        }
+
+        frame play { width = fill padding = [10, 16] layout = horizontal gap = 10 text "Playground" { size = 14, weight = normal, color = colors.gray-600 } }
+        frame logs { width = fill padding = [10, 16] layout = horizontal gap = 10 text "调用日志"   { size = 14, weight = normal, color = colors.gray-600 } }
+        frame task { width = fill padding = [10, 16] layout = horizontal gap = 10 text "异步任务"   { size = 14, weight = normal, color = colors.gray-600 } }
+    }
+
+    // ---------- Main ----------
+    frame main {
+        width = fill height = fill padding = [32, 40] layout = vertical gap = 24
+
+        // 顶栏
+        frame topbar {
+            width = fill height = hug layout = horizontal justify = space-between align = center
+
+            frame title {
+                width = hug layout = vertical gap = 4
+                text "API Keys" { size = 28, weight = bold, color = colors.gray-900 }
+                text "管理访问凭证 · 用于调用 /v1/chat/completions 等中继接口" { size = 14, weight = normal, color = colors.gray-500 }
+            }
+
+            use button-primary("+ 新建密钥")
+        }
+
+        // 新建成功提示（可选，展示一次性 Secret）
+        frame created-alert {
+            width = fill height = hug padding = 20
+            fill = colors.success-bg radius = radius.lg stroke = [1, #A7F3D0]
+            layout = vertical gap = 12
+
+            frame head {
+                width = fill height = hug layout = horizontal align = center gap = 10
+                shape tick { type = ellipse width = 20 height = 20 fill = colors.success }
+                text "密钥已创建（仅显示一次，请立即保存）" { size = 14, weight = semibold, color = #065F46 }
+            }
+
+            frame key-value {
+                width = fill height = hug padding = [14, 16]
+                fill = colors.white radius = radius.md stroke = [1, #A7F3D0]
+                layout = horizontal align = center justify = space-between
+
+                text "sk-nexus-7WinwVC1KTfkJ2h_JDl-paLIqtla2Gch5WGFqj1w0LU" {
+                    size = 13, weight = medium, color = colors.gray-900, family = "SF Mono"
+                }
+
+                frame actions {
+                    width = hug layout = horizontal gap = 8
+                    use button-secondary("复制")
+                    use button-ghost("关闭")
+                }
+            }
+        }
+
+        // Key 列表表格
+        frame keys-table {
+            width = fill height = hug
+            fill = colors.white radius = radius.lg stroke = [1, colors.gray-200]
+            layout = vertical
+
+            // 头部：搜索 + 过滤
+            frame toolbar {
+                width = fill height = hug padding = [16, 20]
+                stroke = [1, colors.gray-100]
+                layout = horizontal align = center justify = space-between
+
+                frame stats {
+                    width = hug layout = horizontal gap = 16 align = center
+                    text "共 4 个密钥" { size = 13, weight = medium, color = colors.gray-700 }
+                    frame div { width = 1 height = 14 fill = colors.gray-300 }
+                    text "3 启用 · 1 禁用" { size = 13, weight = normal, color = colors.gray-500 }
+                }
+
+                frame right {
+                    width = hug layout = horizontal gap = 10 align = center
+                    use input-field("搜索密钥名称...")
+                    use button-secondary("导出 CSV")
+                }
+            }
+
+            // 表头
+            frame th {
+                width = fill height = hug padding = [12, 20]
+                fill = colors.gray-50
+                layout = horizontal align = center
+
+                frame h1 { width = 200 text "名称"      { size = 11, weight = semibold, color = colors.gray-500, text-transform = uppercase, letter-spacing = 0.5 } }
+                frame h2 { width = 220 text "密钥"      { size = 11, weight = semibold, color = colors.gray-500, text-transform = uppercase, letter-spacing = 0.5 } }
+                frame h3 { width = 120 text "模型白名单" { size = 11, weight = semibold, color = colors.gray-500, text-transform = uppercase, letter-spacing = 0.5 } }
+                frame h4 { width = 100 text "本月使用"   { size = 11, weight = semibold, color = colors.gray-500, text-transform = uppercase, letter-spacing = 0.5, align = right } }
+                frame h5 { width = 120 text "最后使用"   { size = 11, weight = semibold, color = colors.gray-500, text-transform = uppercase, letter-spacing = 0.5 } }
+                frame h6 { width = 100 text "状态"       { size = 11, weight = semibold, color = colors.gray-500, text-transform = uppercase, letter-spacing = 0.5 } }
+                frame h7 { width = fill text "操作"      { size = 11, weight = semibold, color = colors.gray-500, text-transform = uppercase, letter-spacing = 0.5, align = right } }
+            }
+
+            // 行 1
+            frame r1 {
+                width = fill height = hug padding = [16, 20]
+                stroke = [1, colors.gray-100]
+                layout = horizontal align = center
+
+                frame c1 { width = 200 layout = vertical gap = 2
+                    text "production"   { size = 13, weight = semibold, color = colors.gray-900 }
+                    text "主应用密钥"    { size = 11, weight = normal, color = colors.gray-500 }
+                }
+                frame c2 { width = 220 text "sk-nexus-7Win...J1w0LU"     { size = 12, weight = normal, color = colors.gray-600, family = "SF Mono" } }
+                frame c3 { width = 120 use badge-gray("全部模型") }
+                frame c4 { width = 100 text "1,247 次"  { size = 13, weight = medium, color = colors.gray-800, align = right } }
+                frame c5 { width = 120 text "14 分钟前" { size = 12, weight = normal, color = colors.gray-600 } }
+                frame c6 { width = 100 use badge-success("● active") }
+                frame c7 { width = fill layout = horizontal gap = 8 justify = end
+                    use button-ghost("重命名")
+                    use button-ghost("禁用")
+                    use button-ghost("删除")
+                }
+            }
+
+            // 行 2
+            frame r2 {
+                width = fill height = hug padding = [16, 20]
+                stroke = [1, colors.gray-100]
+                layout = horizontal align = center
+
+                frame c1 { width = 200 layout = vertical gap = 2
+                    text "dev-local" { size = 13, weight = semibold, color = colors.gray-900 }
+                    text "本地开发"    { size = 11, weight = normal, color = colors.gray-500 }
+                }
+                frame c2 { width = 220 text "sk-nexus-4Kqz...tr8mN2" { size = 12, weight = normal, color = colors.gray-600, family = "SF Mono" } }
+                frame c3 { width = 120 use badge-info("仅 gpt-4o-mini") }
+                frame c4 { width = 100 text "342 次"  { size = 13, weight = medium, color = colors.gray-800, align = right } }
+                frame c5 { width = 120 text "2 小时前" { size = 12, weight = normal, color = colors.gray-600 } }
+                frame c6 { width = 100 use badge-success("● active") }
+                frame c7 { width = fill layout = horizontal gap = 8 justify = end
+                    use button-ghost("重命名")
+                    use button-ghost("禁用")
+                    use button-ghost("删除")
+                }
+            }
+
+            // 行 3
+            frame r3 {
+                width = fill height = hug padding = [16, 20]
+                stroke = [1, colors.gray-100]
+                layout = horizontal align = center
+
+                frame c1 { width = 200 layout = vertical gap = 2
+                    text "ci-runner" { size = 13, weight = semibold, color = colors.gray-900 }
+                    text "E2E 测试用"  { size = 11, weight = normal, color = colors.gray-500 }
+                }
+                frame c2 { width = 220 text "sk-nexus-Pxz9...kf2eLa" { size = 12, weight = normal, color = colors.gray-600, family = "SF Mono" } }
+                frame c3 { width = 120 use badge-gray("全部模型") }
+                frame c4 { width = 100 text "0 次"      { size = 13, weight = medium, color = colors.gray-500, align = right } }
+                frame c5 { width = 120 text "从未"       { size = 12, weight = normal, color = colors.gray-500 } }
+                frame c6 { width = 100 use badge-gray("禁用") }
+                frame c7 { width = fill layout = horizontal gap = 8 justify = end
+                    use button-ghost("重命名")
+                    use button-ghost("启用")
+                    use button-ghost("删除")
+                }
+            }
+
+            // 行 4
+            frame r4 {
+                width = fill height = hug padding = [16, 20]
+                layout = horizontal align = center
+
+                frame c1 { width = 200 layout = vertical gap = 2
+                    text "expired-demo" { size = 13, weight = semibold, color = colors.gray-900 }
+                    text "过期演示"      { size = 11, weight = normal, color = colors.gray-500 }
+                }
+                frame c2 { width = 220 text "sk-nexus-Qwer...asdf12" { size = 12, weight = normal, color = colors.gray-600, family = "SF Mono" } }
+                frame c3 { width = 120 use badge-gray("全部模型") }
+                frame c4 { width = 100 text "89 次"    { size = 13, weight = medium, color = colors.gray-800, align = right } }
+                frame c5 { width = 120 text "3 天前"   { size = 12, weight = normal, color = colors.gray-600 } }
+                frame c6 { width = 100 use badge-warning("已过期") }
+                frame c7 { width = fill layout = horizontal gap = 8 justify = end
+                    use button-ghost("重命名")
+                    use button-ghost("续期")
+                    use button-ghost("删除")
+                }
+            }
+        }
+
+        // 快速使用片段
+        frame code-sample {
+            width = fill height = hug padding = 24
+            fill = colors.gray-900 radius = radius.lg
+            layout = vertical gap = 12
+
+            frame head {
+                width = fill layout = horizontal justify = space-between align = center
+                text "curl 调用示例" { size = 14, weight = semibold, color = colors.white }
+                use button-secondary("复制")
+            }
+
+            frame code {
+                width = fill height = hug padding = [14, 16] layout = vertical gap = 4
+                fill = #1E293B radius = radius.md
+
+                text "curl -X POST https://api.nexus.example.com/v1/chat/completions \\" { size = 12, weight = normal, color = #94A3B8, family = "SF Mono" }
+                text "  -H \"Authorization: Bearer sk-nexus-...\" \\"                      { size = 12, weight = normal, color = #94A3B8, family = "SF Mono" }
+                text "  -H \"Content-Type: application/json\" \\"                            { size = 12, weight = normal, color = #94A3B8, family = "SF Mono" }
+                text "  -d '{\"model\":\"gpt-4o-mini\",\"messages\":[...]}'"                { size = 12, weight = normal, color = #F1F5F9, family = "SF Mono" }
+            }
+        }
+    }
+}

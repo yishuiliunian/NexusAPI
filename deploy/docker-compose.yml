@@ -1,0 +1,160 @@
+# NexusAPI docker-compose
+#
+# 使用：
+#   1. cp .env.example .env  并编辑
+#   2. （可选）本地构建镜像到 Docker：
+#      bazel run //backend/cmd/server:image_tarball
+#      bazel run //backend/cmd/worker:image_tarball
+#      bazel run //backend/cmd/migrate:image_tarball
+#   3. docker compose up -d
+#
+# 生产推荐：通过 CI 推送到 ghcr.io 后改用 ghcr.io/yishuiliunian/nexusapi-* 镜像。
+
+name: nexusapi
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: >
+      sh -c 'if [ -n "$${REDIS_PASSWORD}" ];
+             then exec redis-server --requirepass "$${REDIS_PASSWORD}";
+             else exec redis-server; fi'
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  migrate:
+    image: nexusapi/migrate:${NEXUSAPI_IMAGE_TAG:-latest}
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NEXUSAPI_APP_ENV: ${NEXUSAPI_APP_ENV:-prod}
+      NEXUSAPI_DATABASE_DRIVER: ${NEXUSAPI_DATABASE_DRIVER:-postgres}
+      NEXUSAPI_DATABASE_DSN: ${NEXUSAPI_DATABASE_DSN}
+      NEXUSAPI_LOG_LEVEL: ${NEXUSAPI_LOG_LEVEL:-info}
+      NEXUSAPI_LOG_FORMAT: ${NEXUSAPI_LOG_FORMAT:-json}
+    volumes:
+      - ./migrations:/migrations:ro
+    command: ["--source", "file:///migrations", "up"]
+
+  server:
+    image: nexusapi/server:${NEXUSAPI_IMAGE_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      NEXUSAPI_APP_ENV: ${NEXUSAPI_APP_ENV:-prod}
+      NEXUSAPI_SERVER_HOST: 0.0.0.0
+      NEXUSAPI_SERVER_PORT: 8080
+      NEXUSAPI_DATABASE_DRIVER: ${NEXUSAPI_DATABASE_DRIVER:-postgres}
+      NEXUSAPI_DATABASE_DSN: ${NEXUSAPI_DATABASE_DSN}
+      NEXUSAPI_REDIS_ADDR: ${NEXUSAPI_REDIS_ADDR:-redis:6379}
+      NEXUSAPI_REDIS_PASSWORD: ${NEXUSAPI_REDIS_PASSWORD:-}
+      NEXUSAPI_REDIS_DB: ${NEXUSAPI_REDIS_DB:-0}
+      NEXUSAPI_LOG_LEVEL: ${NEXUSAPI_LOG_LEVEL:-info}
+      NEXUSAPI_LOG_FORMAT: ${NEXUSAPI_LOG_FORMAT:-json}
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "/app/server", "--healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  worker:
+    image: nexusapi/worker:${NEXUSAPI_IMAGE_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+      server:
+        condition: service_started
+    environment:
+      NEXUSAPI_APP_ENV: ${NEXUSAPI_APP_ENV:-prod}
+      NEXUSAPI_DATABASE_DRIVER: ${NEXUSAPI_DATABASE_DRIVER:-postgres}
+      NEXUSAPI_DATABASE_DSN: ${NEXUSAPI_DATABASE_DSN}
+      NEXUSAPI_REDIS_ADDR: ${NEXUSAPI_REDIS_ADDR:-redis:6379}
+      NEXUSAPI_REDIS_PASSWORD: ${NEXUSAPI_REDIS_PASSWORD:-}
+      NEXUSAPI_LOG_LEVEL: ${NEXUSAPI_LOG_LEVEL:-info}
+      NEXUSAPI_LOG_FORMAT: ${NEXUSAPI_LOG_FORMAT:-json}
+
+  web-user:
+    image: nexusapi/web-user_image:${NEXUSAPI_IMAGE_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      - server
+    environment:
+      NEXUSAPI_BACKEND_URL: ${NEXUSAPI_BACKEND_URL:-http://server:8080}
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+    ports:
+      - "${WEB_USER_PORT:-3000}:3000"
+
+  web-admin:
+    image: nexusapi/web-admin_image:${NEXUSAPI_IMAGE_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      - server
+    environment:
+      NEXUSAPI_BACKEND_URL: ${NEXUSAPI_BACKEND_URL:-http://server:8080}
+      PORT: 3001
+      HOSTNAME: 0.0.0.0
+    ports:
+      - "${WEB_ADMIN_PORT:-3001}:3001"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      NEXUSAPI_DOMAIN: ${NEXUSAPI_DOMAIN:-}
+      ADMIN_DOMAIN: ${ADMIN_DOMAIN:-}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web-user
+      - web-admin
+      - server
+
+volumes:
+  pgdata:
+  redisdata:
+  caddy_data:
+  caddy_config:

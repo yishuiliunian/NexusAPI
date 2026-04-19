@@ -1,0 +1,58 @@
+load("@rules_go//go:def.bzl", "go_binary", "go_library")
+load("//build:oci.bzl", "go_oci_image")
+
+go_library(
+    name = "server_lib",
+    srcs = [
+        "main.go",
+        "provider_checker.go",
+    ],
+    importpath = "github.com/yishuiliunian/nexusapi/backend/cmd/server",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//backend/internal/app/audit",
+        "//backend/internal/app/auth",
+        "//backend/internal/app/billing",
+        "//backend/internal/app/keys",
+        "//backend/internal/app/oauth",
+        "//backend/internal/app/payment",
+        "//backend/internal/app/pricing",
+        "//backend/internal/app/redemption",
+        "//backend/internal/app/relay",
+        "//backend/internal/app/subscription",
+        "//backend/internal/app/task",
+        "//backend/internal/app/verify",
+        "//backend/internal/config",
+        "//backend/internal/domain/billing",
+        "//backend/internal/domain/relay",
+        "//backend/internal/infra/cache",
+        "//backend/internal/infra/db",
+        "//backend/internal/infra/oauth/github",
+        "//backend/internal/infra/oauth/google",
+        "//backend/internal/infra/payment/stripe",
+        "//backend/internal/infra/provider",
+        "//backend/internal/infra/provider/providers",
+        "//backend/internal/interface/http",
+        "//backend/internal/interface/http/middleware",
+        "//backend/pkg/crypto",
+        "//backend/pkg/httpclient",
+        "//backend/pkg/logger",
+        "//backend/pkg/mailer",
+        "//backend/pkg/proxy",
+        "//backend/pkg/ratelimit",
+        "@org_uber_go_zap//:zap",
+    ],
+)
+
+go_binary(
+    name = "server",
+    embed = [":server_lib"],
+    visibility = ["//visibility:public"],
+)
+
+go_oci_image(
+    name = "image",
+    binary = ":server",
+    exposed_ports = ["8080/tcp"],
+    repository = "ghcr.io/yishuiliunian/nexusapi-server",
+)

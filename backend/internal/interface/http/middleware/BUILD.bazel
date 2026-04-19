@@ -1,0 +1,38 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "middleware",
+    srcs = [
+        "csrf.go",
+        "ip_whitelist.go",
+        "middleware.go",
+        "ratelimit.go",
+    ],
+    importpath = "github.com/yishuiliunian/nexusapi/backend/internal/interface/http/middleware",
+    visibility = ["//backend:__subpackages__"],
+    deps = [
+        "//backend/internal/app/auth",
+        "//backend/internal/app/keys",
+        "//backend/internal/domain/apikey",
+        "//backend/internal/domain/user",
+        "//backend/pkg/errors",
+        "//backend/pkg/httperr",
+        "//backend/pkg/ratelimit",
+        "@com_github_gin_gonic_gin//:gin",
+        "@org_uber_go_zap//:zap",
+    ],
+)
+
+go_test(
+    name = "middleware_test",
+    srcs = ["middleware_test.go"],
+    embed = [":middleware"],
+    deps = [
+        "//backend/internal/domain/apikey",
+        "//backend/internal/domain/user",
+        "//backend/pkg/ratelimit",
+        "@com_github_alicebob_miniredis_v2//:miniredis",
+        "@com_github_gin_gonic_gin//:gin",
+        "@com_github_redis_go_redis_v9//:go-redis",
+    ],
+)

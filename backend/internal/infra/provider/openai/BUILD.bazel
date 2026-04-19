@@ -1,0 +1,23 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "openai",
+    srcs = [
+        "adaptor.go",
+        "list_models.go",
+    ],
+    importpath = "github.com/yishuiliunian/nexusapi/backend/internal/infra/provider/openai",
+    visibility = ["//backend:__subpackages__"],
+    deps = [
+        "//backend/internal/domain/relay",
+        "//backend/internal/infra/provider",
+        "//backend/pkg/httpclient",
+    ],
+)
+
+go_test(
+    name = "openai_test",
+    srcs = ["list_models_test.go"],
+    embed = [":openai"],
+    deps = ["//backend/internal/domain/relay"],
+)

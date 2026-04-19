@@ -1,0 +1,56 @@
+"""web-shared —— 跨前端共享的类型 / API client / 图表组件 / 工具。"""
+
+load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
+load("@aspect_rules_js//js:defs.bzl", "js_library")
+load("@aspect_rules_js//npm:defs.bzl", "npm_package")
+load("@npm//:defs.bzl", "npm_link_all_packages")
+
+npm_link_all_packages(name = "node_modules")
+
+js_library(
+    name = "shared",
+    srcs = glob(
+        [
+            "src/**/*.ts",
+            "src/**/*.tsx",
+        ],
+        exclude = ["src/**/*.test.ts"],
+    ),
+    data = [
+        "package.json",
+        "tsconfig.json",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+copy_to_bin(
+    name = "sources",
+    srcs = glob(
+        [
+            "src/**/*.ts",
+            "src/**/*.tsx",
+        ],
+        exclude = ["src/**/*.test.ts"],
+    ),
+    visibility = ["//visibility:public"],
+)
+
+npm_package(
+    name = "pkg",
+    srcs = [
+        "package.json",
+        "tsconfig.json",
+    ] + glob(
+        [
+            "src/**/*.ts",
+            "src/**/*.tsx",
+        ],
+        exclude = ["src/**/*.test.ts"],
+    ),
+    visibility = ["//visibility:public"],
+)
+
+exports_files([
+    "package.json",
+    "tsconfig.json",
+])

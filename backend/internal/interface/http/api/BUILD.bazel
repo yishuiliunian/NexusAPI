@@ -1,0 +1,35 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "api",
+    srcs = [
+        "api.go",
+        "auth.go",
+        "billing.go",
+        "oauth.go",
+        "stats.go",
+        "subscription.go",
+        "twofa.go",
+        "user.go",
+        "verify.go",
+    ],
+    importpath = "github.com/yishuiliunian/nexusapi/backend/internal/interface/http/api",
+    visibility = ["//backend:__subpackages__"],
+    deps = [
+        "//backend/internal/app/auth",
+        "//backend/internal/app/keys",
+        "//backend/internal/app/oauth",
+        "//backend/internal/app/payment",
+        "//backend/internal/app/redemption",
+        "//backend/internal/app/subscription",
+        "//backend/internal/app/twofa",
+        "//backend/internal/app/verify",
+        "//backend/internal/domain/billing",
+        "//backend/internal/domain/payment",
+        "//backend/internal/domain/user",
+        "//backend/internal/interface/http/middleware",
+        "//backend/pkg/errors",
+        "//backend/pkg/httperr",
+        "@com_github_gin_gonic_gin//:gin",
+    ],
+)

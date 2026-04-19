@@ -1,0 +1,56 @@
+# 顶层 BUILD：聚合 gazelle / buildifier / npm 依赖 link。
+#
+# 用法：
+#   bazel run //:gazelle                    # 根据 .go 源码自动生成所有 BUILD.bazel
+#   bazel run //:gazelle_update_repos       # 读取 go.work 变动，更新 go_deps
+#   bazel run //:buildifier                 # 格式化所有 BUILD/.bzl
+#   bazel run //:buildifier_check           # 检查是否需要格式化
+
+load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
+load("@aspect_rules_js//js:defs.bzl", "js_library")
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+load("@gazelle//:def.bzl", "gazelle")
+load("@npm//:defs.bzl", "npm_link_all_packages")
+
+# gazelle:prefix github.com/yishuiliunian/nexusapi
+gazelle(name = "gazelle")
+
+gazelle(
+    name = "gazelle_update_repos",
+    args = [
+        "-from_file=backend/go.mod",
+        "-to_macro=deps.bzl%go_dependencies",
+        "-prune",
+    ],
+    command = "update-repos",
+)
+
+# 导出配置文件给子包引用
+exports_files(
+    [
+        ".bazelrc",
+        ".bazelignore",
+        ".npmrc",
+        "go.work",
+        "package.json",
+        "pnpm-lock.yaml",
+        "pnpm-workspace.yaml",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+# npm 依赖按 pnpm-lock.yaml link 到根 node_modules
+npm_link_all_packages(name = "node_modules")
+
+# 子 BUILD 需要的公用 target
+js_library(
+    name = "package_json",
+    srcs = ["package.json"],
+    visibility = ["//visibility:public"],
+)
+
+copy_to_bin(
+    name = "package_json_bin",
+    srcs = ["package.json"],
+    visibility = ["//visibility:public"],
+)

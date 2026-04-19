@@ -1,0 +1,14 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "webhook",
+    srcs = ["webhook.go"],
+    importpath = "github.com/yishuiliunian/nexusapi/backend/internal/interface/http/webhook",
+    visibility = ["//backend:__subpackages__"],
+    deps = [
+        "//backend/internal/app/payment",
+        "//backend/pkg/errors",
+        "//backend/pkg/httperr",
+        "@com_github_gin_gonic_gin//:gin",
+    ],
+)

@@ -1,0 +1,411 @@
+// Admin · 激活码批量生成
+//
+// 定位：运营核心工作流（比发邮件优惠券更硬核）
+// 布局：左侧生成表单 + 右侧最近批次列表 + 底部已生成激活码表
+
+include "./components.pastel"
+
+canvas "admin-redemption" {
+    width      = 1600
+    height     = 1500
+    background = colors.slate-900
+}
+
+frame shell {
+    width = fill height = fill layout = horizontal
+
+    // ---------- Sidebar ----------
+    frame sidebar {
+        width = 240 height = fill fill = colors.slate-800
+        layout = vertical padding = [24, 16] gap = 8
+
+        frame logo {
+            width = fill layout = horizontal gap = 10 align = center padding = [0, 8, 16, 8]
+            frame icon { width = 28 height = 28 fill = colors.primary-500 radius = radius.md layout = vertical justify = center align = center
+                text "N" { size = 16, weight = bold, color = colors.white } }
+            frame title-col {
+                width = hug layout = vertical gap = 0
+                text "NexusAPI"  { size = 16, weight = bold, color = colors.white }
+                text "管理后台"  { size = 10, weight = medium, color = #94A3B8, text-transform = uppercase, letter-spacing = 1.0 }
+            }
+        }
+
+        text "运营" { size = 11, weight = medium, color = #64748B, text-transform = uppercase }
+        frame i1 { width = fill padding = [10, 16] text "全局概览" { size = 14, weight = normal, color = #CBD5E1 } }
+        frame i2 { width = fill padding = [10, 16] text "渠道管理" { size = 14, weight = normal, color = #CBD5E1 } }
+        frame i3 { width = fill padding = [10, 16] text "模型价格" { size = 14, weight = normal, color = #CBD5E1 } }
+        frame i4 { width = fill padding = [10, 16] text "用户"    { size = 14, weight = normal, color = #CBD5E1 } }
+        frame i5 { width = fill padding = [10, 16] text "分组"    { size = 14, weight = normal, color = #CBD5E1 } }
+
+        text "财务" { size = 11, weight = medium, color = #64748B, text-transform = uppercase }
+        frame i6 { width = fill padding = [10, 16] text "订单"    { size = 14, weight = normal, color = #CBD5E1 } }
+
+        frame active {
+            width = fill padding = [10, 12] layout = horizontal gap = 10 align = center
+            fill = #2563EB33 radius = radius.md
+            frame d { width = 4 height = 20 fill = colors.primary-500 radius = 2 }
+            text "激活码生成" { size = 14, weight = semibold, color = colors.white }
+        }
+
+        text "系统" { size = 11, weight = medium, color = #64748B, text-transform = uppercase }
+        frame i8 { width = fill padding = [10, 16] text "审计日志" { size = 14, weight = normal, color = #CBD5E1 } }
+        frame i9 { width = fill padding = [10, 16] text "系统设置" { size = 14, weight = normal, color = #CBD5E1 } }
+    }
+
+    // ---------- Main ----------
+    frame main {
+        width = fill height = fill padding = [32, 40] layout = vertical gap = 24
+
+        // 顶栏
+        frame topbar {
+            width = fill layout = vertical gap = 4
+            text "激活码生成" { size = 28, weight = bold, color = colors.white }
+            text "批量签发激活码。适用于运营活动 / 合作伙伴分发 / 补偿发放。" { size = 13, weight = normal, color = #94A3B8 }
+        }
+
+        // 核心两栏
+        frame core-row {
+            width = fill height = hug layout = horizontal gap = 20 align = start
+
+            // 左：生成表单
+            frame form-card {
+                width = 560 height = hug padding = 28
+                fill = colors.slate-800 radius = radius.lg stroke = [1, #334155]
+                layout = vertical gap = 20
+
+                frame head {
+                    width = fill layout = vertical gap = 4
+                    text "新建批次" { size = 18, weight = semibold, color = colors.white }
+                    text "配置数量、面额、前缀、有效期" { size = 12, weight = normal, color = #94A3B8 }
+                }
+
+                // 批次名称
+                frame f1 {
+                    width = fill layout = vertical gap = 8
+                    text "批次名称" { size = 12, weight = medium, color = #CBD5E1 }
+                    frame input-bw {
+                        width = fill height = 40 padding = [10, 14]
+                        fill = #0F172A radius = radius.md stroke = [1, #334155]
+                        layout = horizontal align = center
+                        text "2026 春季推广 · 抖音合作" { size = 13, weight = normal, color = colors.white }
+                    }
+                }
+
+                // 数量 + 前缀
+                frame f-row {
+                    width = fill layout = horizontal gap = 12
+
+                    frame f2 {
+                        width = fill layout = vertical gap = 8
+                        text "生成数量" { size = 12, weight = medium, color = #CBD5E1 }
+                        frame input-bw {
+                            width = fill height = 40 padding = [10, 14]
+                            fill = #0F172A radius = radius.md stroke = [1, #334155]
+                            layout = horizontal align = center
+                            text "500" { size = 13, weight = normal, color = colors.white, family = "SF Mono" }
+                        }
+                        text "最多 10,000 / 批次" { size = 11, weight = normal, color = #64748B }
+                    }
+
+                    frame f3 {
+                        width = fill layout = vertical gap = 8
+                        text "前缀" { size = 12, weight = medium, color = #CBD5E1 }
+                        frame input-bw {
+                            width = fill height = 40 padding = [10, 14]
+                            fill = #0F172A radius = radius.md stroke = [1, #334155]
+                            layout = horizontal align = center
+                            text "NEXUS-DY-" { size = 13, weight = normal, color = colors.white, family = "SF Mono" }
+                        }
+                        text "可选，影响生成的前缀" { size = 11, weight = normal, color = #64748B }
+                    }
+                }
+
+                // 面额
+                frame f4 {
+                    width = fill layout = vertical gap = 8
+                    text "单张面额" { size = 12, weight = medium, color = #CBD5E1 }
+
+                    frame amount-picker {
+                        width = fill height = 48 layout = horizontal gap = 0
+                        fill = #0F172A radius = radius.md stroke = [1, #334155]
+
+                        frame p1 { width = fill layout = vertical justify = center align = center
+                            text "¥10" { size = 13, weight = medium, color = #94A3B8 }
+                        }
+                        frame p2 { width = fill layout = vertical justify = center align = center
+                            fill = colors.primary-500 radius = radius.md
+                            text "¥50" { size = 13, weight = bold, color = colors.white }
+                        }
+                        frame p3 { width = fill layout = vertical justify = center align = center
+                            text "¥100" { size = 13, weight = medium, color = #94A3B8 }
+                        }
+                        frame p4 { width = fill layout = vertical justify = center align = center
+                            text "¥500" { size = 13, weight = medium, color = #94A3B8 }
+                        }
+                        frame p5 { width = fill layout = vertical justify = center align = center stroke-dash = [4, 4] stroke = [1, #334155]
+                            text "自定义" { size = 12, weight = medium, color = #94A3B8 }
+                        }
+                    }
+                }
+
+                // 有效期 + 首次限额
+                frame f-row2 {
+                    width = fill layout = horizontal gap = 12
+
+                    frame f5 {
+                        width = fill layout = vertical gap = 8
+                        text "有效期" { size = 12, weight = medium, color = #CBD5E1 }
+                        frame input-bw {
+                            width = fill height = 40 padding = [10, 14]
+                            fill = #0F172A radius = radius.md stroke = [1, #334155]
+                            layout = horizontal align = center justify = space-between
+                            text "2026-07-18" { size = 13, weight = normal, color = colors.white, family = "SF Mono" }
+                            text "📅" { size = 14, weight = normal, color = #94A3B8 }
+                        }
+                    }
+
+                    frame f6 {
+                        width = fill layout = vertical gap = 8
+                        text "单账户使用限制" { size = 12, weight = medium, color = #CBD5E1 }
+                        frame dropdown {
+                            width = fill height = 40 padding = [10, 14]
+                            fill = #0F172A radius = radius.md stroke = [1, #334155]
+                            layout = horizontal align = center justify = space-between
+                            text "每账户 1 次" { size = 13, weight = normal, color = colors.white }
+                            text "▾" { size = 12, weight = normal, color = #94A3B8 }
+                        }
+                    }
+                }
+
+                // 预览
+                frame preview {
+                    width = fill padding = 16
+                    fill = #0F172A radius = radius.md stroke-dash = [4, 4] stroke = [1, #334155]
+                    layout = vertical gap = 8
+
+                    text "预览（示例）" { size = 10, weight = medium, color = #64748B, text-transform = uppercase, letter-spacing = 1.0 }
+
+                    frame sample {
+                        width = fill layout = horizontal gap = 6 align = center
+                        text "NEXUS-DY-7X2K9A" { size = 14, weight = bold, color = colors.white, family = "SF Mono", letter-spacing = 1.0 }
+                        text "→ 面额 ¥50 · 至 2026-07-18" { size = 12, weight = normal, color = #94A3B8 }
+                    }
+                }
+
+                // 动作按钮
+                frame actions {
+                    width = fill layout = horizontal gap = 12 justify = end align = center
+                    use button-ghost("取消")
+                    frame gen-btn {
+                        padding = [10, 24] fill = colors.primary-500 radius = radius.md
+                        text "生成 500 张 · ¥25,000" { size = 14, weight = semibold, color = colors.white }
+                    }
+                }
+            }
+
+            // 右：本月统计 + 最近批次
+            frame stats-col {
+                width = fill height = hug layout = vertical gap = 16
+
+                // 本月统计
+                frame month-stats {
+                    width = fill padding = 20
+                    fill = colors.slate-800 radius = radius.lg stroke = [1, #334155]
+                    layout = vertical gap = 16
+
+                    text "本月运营数据" { size = 14, weight = semibold, color = colors.white }
+
+                    frame grid {
+                        width = fill layout = horizontal gap = 16
+
+                        frame m1 {
+                            width = fill layout = vertical gap = 4
+                            text "已生成"   { size = 11, weight = medium, color = #64748B, text-transform = uppercase }
+                            text "12,400"   { size = 24, weight = bold, color = colors.white }
+                            text "张激活码" { size = 11, weight = normal, color = #94A3B8 }
+                        }
+                        frame m2 {
+                            width = fill layout = vertical gap = 4
+                            text "已兑换"   { size = 11, weight = medium, color = #64748B, text-transform = uppercase }
+                            text "8,712"    { size = 24, weight = bold, color = colors.success }
+                            text "兑换率 70.3%" { size = 11, weight = normal, color = #94A3B8 }
+                        }
+                        frame m3 {
+                            width = fill layout = vertical gap = 4
+                            text "累计放款"  { size = 11, weight = medium, color = #64748B, text-transform = uppercase }
+                            text "¥435,600" { size = 24, weight = bold, color = colors.primary-400, family = "SF Mono" }
+                            text "本月"      { size = 11, weight = normal, color = #94A3B8 }
+                        }
+                    }
+                }
+
+                // 最近批次
+                frame recent-batches {
+                    width = fill
+                    fill = colors.slate-800 radius = radius.lg stroke = [1, #334155]
+                    layout = vertical
+
+                    frame head {
+                        width = fill padding = [16, 20]
+                        stroke = [1, #334155]
+                        layout = horizontal justify = space-between align = center
+
+                        frame col {
+                            width = hug layout = vertical gap = 2
+                            text "最近批次" { size = 14, weight = semibold, color = colors.white }
+                            text "点击查看 / 导出某批次全部激活码" { size = 11, weight = normal, color = #64748B }
+                        }
+                        use button-ghost("全部 →")
+                    }
+
+                    // 批次 1
+                    frame b1 {
+                        width = fill padding = [14, 20]
+                        stroke = [1, #334155]
+                        layout = horizontal align = center gap = 16
+
+                        frame col {
+                            width = fill layout = vertical gap = 4
+                            text "2026 春季推广 · 抖音合作" { size = 13, weight = semibold, color = colors.white }
+                            text "NEXUS-DY- · 500 张 · ¥50 / 张 · 2026-04-18 14:30" { size = 11, weight = normal, color = #94A3B8, family = "SF Mono" }
+                        }
+
+                        frame meta {
+                            width = hug layout = vertical gap = 4 align = end
+                            text "¥25,000" { size = 14, weight = bold, color = colors.primary-400, family = "SF Mono" }
+                            use badge-info("处理中")
+                        }
+                    }
+
+                    frame b2 {
+                        width = fill padding = [14, 20]
+                        stroke = [1, #334155]
+                        layout = horizontal align = center gap = 16
+
+                        frame col {
+                            width = fill layout = vertical gap = 4
+                            text "Q1 老用户补偿" { size = 13, weight = semibold, color = colors.white }
+                            text "NEXUS-RF- · 2,400 张 · ¥20 / 张 · 2026-04-15 10:12" { size = 11, weight = normal, color = #94A3B8, family = "SF Mono" }
+                        }
+
+                        frame meta {
+                            width = hug layout = vertical gap = 4 align = end
+                            text "¥48,000" { size = 14, weight = bold, color = colors.success, family = "SF Mono" }
+                            use badge-success("已兑换 91%")
+                        }
+                    }
+
+                    frame b3 {
+                        width = fill padding = [14, 20]
+                        stroke = [1, #334155]
+                        layout = horizontal align = center gap = 16
+
+                        frame col {
+                            width = fill layout = vertical gap = 4
+                            text "公众号新用户" { size = 13, weight = semibold, color = colors.white }
+                            text "NEXUS-WX- · 5,000 张 · ¥10 / 张 · 2026-04-02 09:00" { size = 11, weight = normal, color = #94A3B8, family = "SF Mono" }
+                        }
+
+                        frame meta {
+                            width = hug layout = vertical gap = 4 align = end
+                            text "¥50,000" { size = 14, weight = bold, color = colors.success, family = "SF Mono" }
+                            use badge-success("已兑换 68%")
+                        }
+                    }
+
+                    frame b4 {
+                        width = fill padding = [14, 20]
+                        layout = horizontal align = center gap = 16
+
+                        frame col {
+                            width = fill layout = vertical gap = 4
+                            text "VIP 赠送" { size = 13, weight = semibold, color = colors.white }
+                            text "NEXUS-VIP- · 50 张 · ¥500 / 张 · 2026-03-28 16:45" { size = 11, weight = normal, color = #94A3B8, family = "SF Mono" }
+                        }
+
+                        frame meta {
+                            width = hug layout = vertical gap = 4 align = end
+                            text "¥25,000" { size = 14, weight = bold, color = colors.success, family = "SF Mono" }
+                            use badge-success("已兑换 98%")
+                        }
+                    }
+                }
+            }
+        }
+
+        // 底部：当前批次激活码列表
+        frame codes-table {
+            width = fill
+            fill = colors.slate-800 radius = radius.lg stroke = [1, #334155]
+            layout = vertical
+
+            frame head {
+                width = fill padding = [16, 20] stroke = [1, #334155]
+                layout = horizontal justify = space-between align = center
+
+                frame col {
+                    width = hug layout = vertical gap = 2
+                    text "批次：2026 春季推广 · 抖音合作" { size = 14, weight = semibold, color = colors.white }
+                    text "NEXUS-DY-* · 500 张 · 0 张已兑换" { size = 11, weight = normal, color = #94A3B8, family = "SF Mono" }
+                }
+
+                frame actions {
+                    width = hug layout = horizontal gap = 10
+                    use button-secondary("复制全部")
+                    frame dl-btn {
+                        padding = [8, 16] fill = #334155 radius = radius.md layout = horizontal gap = 6 align = center
+                        text "📥" { size = 12 }
+                        text "导出 CSV" { size = 12, weight = medium, color = colors.white }
+                    }
+                }
+            }
+
+            // 表头
+            frame th {
+                width = fill padding = [10, 20]
+                fill = #1E293B
+                layout = horizontal
+
+                frame h1 { width = 400 text "激活码"    { size = 10, weight = semibold, color = #64748B, text-transform = uppercase, letter-spacing = 1.0 } }
+                frame h2 { width = 120 text "面额"      { size = 10, weight = semibold, color = #64748B, text-transform = uppercase, letter-spacing = 1.0, align = right } }
+                frame h3 { width = 160 text "有效期"    { size = 10, weight = semibold, color = #64748B, text-transform = uppercase, letter-spacing = 1.0 } }
+                frame h4 { width = 160 text "兑换状态"  { size = 10, weight = semibold, color = #64748B, text-transform = uppercase, letter-spacing = 1.0 } }
+                frame h5 { width = fill text "兑换用户"  { size = 10, weight = semibold, color = #64748B, text-transform = uppercase, letter-spacing = 1.0 } }
+            }
+
+            // 行
+            frame r1 {
+                width = fill padding = [12, 20] stroke = [1, #334155] layout = horizontal align = center
+                frame c1 { width = 400 text "NEXUS-DY-7X2K9A4P" { size = 13, weight = medium, color = colors.white, family = "SF Mono", letter-spacing = 1.0 } }
+                frame c2 { width = 120 text "¥50.00" { size = 13, weight = medium, color = colors.primary-400, align = right, family = "SF Mono" } }
+                frame c3 { width = 160 text "2026-07-18"    { size = 12, weight = normal, color = #CBD5E1, family = "SF Mono" } }
+                frame c4 { width = 160 use badge-gray("未兑换") }
+                frame c5 { width = fill text "—"             { size = 12, weight = normal, color = #64748B } }
+            }
+            frame r2 {
+                width = fill padding = [12, 20] stroke = [1, #334155] layout = horizontal align = center
+                frame c1 { width = 400 text "NEXUS-DY-P9M4QX2W" { size = 13, weight = medium, color = colors.white, family = "SF Mono", letter-spacing = 1.0 } }
+                frame c2 { width = 120 text "¥50.00" { size = 13, weight = medium, color = colors.primary-400, align = right, family = "SF Mono" } }
+                frame c3 { width = 160 text "2026-07-18"    { size = 12, weight = normal, color = #CBD5E1, family = "SF Mono" } }
+                frame c4 { width = 160 use badge-success("已兑换") }
+                frame c5 { width = fill text "alice@example.com · 12 分钟前" { size = 12, weight = normal, color = #CBD5E1 } }
+            }
+            frame r3 {
+                width = fill padding = [12, 20] stroke = [1, #334155] layout = horizontal align = center
+                frame c1 { width = 400 text "NEXUS-DY-K3L8VF2M" { size = 13, weight = medium, color = colors.white, family = "SF Mono", letter-spacing = 1.0 } }
+                frame c2 { width = 120 text "¥50.00" { size = 13, weight = medium, color = colors.primary-400, align = right, family = "SF Mono" } }
+                frame c3 { width = 160 text "2026-07-18"    { size = 12, weight = normal, color = #CBD5E1, family = "SF Mono" } }
+                frame c4 { width = 160 use badge-gray("未兑换") }
+                frame c5 { width = fill text "—"             { size = 12, weight = normal, color = #64748B } }
+            }
+            frame r4 {
+                width = fill padding = [12, 20] layout = horizontal align = center
+                frame c1 { width = 400 text "NEXUS-DY-QR5Y7BP3" { size = 13, weight = medium, color = colors.white, family = "SF Mono", letter-spacing = 1.0 } }
+                frame c2 { width = 120 text "¥50.00" { size = 13, weight = medium, color = colors.primary-400, align = right, family = "SF Mono" } }
+                frame c3 { width = 160 text "2026-07-18"    { size = 12, weight = normal, color = #CBD5E1, family = "SF Mono" } }
+                frame c4 { width = 160 use badge-success("已兑换") }
+                frame c5 { width = fill text "bob@startup.io · 6 小时前"  { size = 12, weight = normal, color = #CBD5E1 } }
+            }
+        }
+    }
+}

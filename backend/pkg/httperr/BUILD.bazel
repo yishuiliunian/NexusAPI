@@ -1,0 +1,12 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "httperr",
+    srcs = ["httperr.go"],
+    importpath = "github.com/yishuiliunian/nexusapi/backend/pkg/httperr",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//backend/pkg/errors",
+        "@com_github_gin_gonic_gin//:gin",
+    ],
+)

@@ -1,0 +1,19 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "extractors",
+    srcs = [
+        "claude.go",
+        "gemini.go",
+        "openai.go",
+    ],
+    importpath = "github.com/yishuiliunian/nexusapi/backend/pkg/proxy/extractors",
+    visibility = ["//visibility:public"],
+    deps = ["//backend/pkg/proxy"],
+)
+
+go_test(
+    name = "extractors_test",
+    srcs = ["extractors_test.go"],
+    embed = [":extractors"],
+)

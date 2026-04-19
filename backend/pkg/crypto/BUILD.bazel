@@ -1,0 +1,14 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "crypto",
+    srcs = ["crypto.go"],
+    importpath = "github.com/yishuiliunian/nexusapi/backend/pkg/crypto",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "crypto_test",
+    srcs = ["crypto_test.go"],
+    embed = [":crypto"],
+)

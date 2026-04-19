@@ -1,0 +1,17 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "providers",
+    srcs = ["providers.go"],
+    importpath = "github.com/yishuiliunian/nexusapi/backend/internal/infra/provider/providers",
+    visibility = ["//backend:__subpackages__"],
+    deps = [
+        "//backend/internal/infra/provider/azure",
+        "//backend/internal/infra/provider/claude",
+        "//backend/internal/infra/provider/gemini",
+        "//backend/internal/infra/provider/midjourney",
+        "//backend/internal/infra/provider/openai",
+        "//backend/internal/infra/provider/openaicompat",
+        "//backend/internal/infra/provider/suno",
+    ],
+)

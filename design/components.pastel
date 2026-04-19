@@ -1,0 +1,233 @@
+// NexusAPI 组件库 · 可复用 UI 单元
+//
+// 每个 component 都接受参数；用 `use` 在页面里实例化。
+
+include "./tokens.pastel"
+
+// ---------- Button ----------
+
+component button-primary(label) {
+    frame {
+        padding = [10, 18]
+        fill    = colors.primary-600
+        radius  = radius.md
+        layout  = horizontal
+        align   = center
+        justify = center
+        shadow  = shadow.sm
+
+        text label { size = 14, weight = medium, color = colors.white }
+    }
+}
+
+component button-secondary(label) {
+    frame {
+        padding = [10, 18]
+        fill    = colors.white
+        radius  = radius.md
+        stroke  = [1, colors.gray-300]
+        layout  = horizontal
+        align   = center
+        justify = center
+
+        text label { size = 14, weight = medium, color = colors.gray-700 }
+    }
+}
+
+component button-ghost(label) {
+    frame {
+        padding = [10, 18]
+        fill    = transparent
+        radius  = radius.md
+        layout  = horizontal
+        align   = center
+        justify = center
+
+        text label { size = 14, weight = medium, color = colors.primary-600 }
+    }
+}
+
+component button-danger(label) {
+    frame {
+        padding = [10, 18]
+        fill    = colors.danger
+        radius  = radius.md
+        layout  = horizontal
+        align   = center
+        justify = center
+
+        text label { size = 14, weight = medium, color = colors.white }
+    }
+}
+
+component button-sm(label) {
+    frame {
+        padding = [6, 12]
+        fill    = colors.primary-600
+        radius  = radius.sm
+        layout  = horizontal
+        align   = center
+        justify = center
+
+        text label { size = 12, weight = medium, color = colors.white }
+    }
+}
+
+// ---------- Badge ----------
+
+component badge-success(label) {
+    frame {
+        padding = [3, 8]
+        fill    = colors.success-bg
+        radius  = radius.full
+        layout  = horizontal
+        align   = center
+
+        text label { size = 11, weight = medium, color = colors.success }
+    }
+}
+
+component badge-warning(label) {
+    frame {
+        padding = [3, 8]
+        fill    = colors.warning-bg
+        radius  = radius.full
+        layout  = horizontal
+        align   = center
+
+        text label { size = 11, weight = medium, color = #B45309 }
+    }
+}
+
+component badge-danger(label) {
+    frame {
+        padding = [3, 8]
+        fill    = colors.danger-bg
+        radius  = radius.full
+        layout  = horizontal
+        align   = center
+
+        text label { size = 11, weight = medium, color = colors.danger }
+    }
+}
+
+component badge-info(label) {
+    frame {
+        padding = [3, 8]
+        fill    = colors.info-bg
+        radius  = radius.full
+        layout  = horizontal
+        align   = center
+
+        text label { size = 11, weight = medium, color = #0E7490 }
+    }
+}
+
+component badge-gray(label) {
+    frame {
+        padding = [3, 8]
+        fill    = colors.gray-100
+        radius  = radius.full
+        layout  = horizontal
+        align   = center
+
+        text label { size = 11, weight = medium, color = colors.gray-600 }
+    }
+}
+
+// ---------- Input ----------
+
+component input-field(placeholder) {
+    frame {
+        width   = fill
+        height  = 40
+        padding = [10, 14]
+        fill    = colors.white
+        radius  = radius.md
+        stroke  = [1, colors.gray-300]
+        layout  = horizontal
+        align   = center
+
+        text placeholder { size = 14, weight = normal, color = colors.gray-400 }
+    }
+}
+
+component input-field-filled(value) {
+    frame {
+        width   = fill
+        height  = 40
+        padding = [10, 14]
+        fill    = colors.white
+        radius  = radius.md
+        stroke  = border.focus
+        layout  = horizontal
+        align   = center
+
+        text value { size = 14, weight = normal, color = colors.gray-900 }
+    }
+}
+
+// ---------- StatCard ----------
+// accent 色条 + label + 大数字 + hint
+
+component stat-card(label, value, hint, accent) {
+    frame {
+        width   = fill
+        height  = hug
+        padding = [18, 20]
+        fill    = colors.white
+        radius  = radius.lg
+        stroke  = [1, colors.gray-200]
+        layout  = vertical
+        gap     = 6
+
+        frame top {
+            width  = fill
+            height = hug
+            layout = horizontal
+            align  = center
+            gap    = 8
+
+            frame dot {
+                width  = 6
+                height = 6
+                fill   = accent
+                radius = radius.full
+            }
+            text label { size = 12, weight = medium, color = colors.gray-500 }
+        }
+
+        text value { size = 28, weight = bold, color = colors.gray-900, line-height = 34 }
+
+        text hint { size = 12, weight = normal, color = colors.gray-400 }
+    }
+}
+
+// ---------- Card ----------
+
+component card-plain(title) {
+    frame {
+        width   = fill
+        height  = hug
+        padding = 20
+        fill    = colors.white
+        radius  = radius.lg
+        stroke  = [1, colors.gray-200]
+        layout  = vertical
+        gap     = 12
+
+        text title { size = 14, weight = semibold, color = colors.gray-800 }
+    }
+}
+
+// ---------- Table row（示例用） ----------
+
+component table-cell(text-value) {
+    frame {
+        padding = [10, 12]
+        layout  = horizontal
+        align   = center
+
+        text text-value { size = 13, weight = normal, color = colors.gray-700 }
+    }
+}

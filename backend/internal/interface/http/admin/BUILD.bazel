@@ -1,0 +1,32 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "admin",
+    srcs = [
+        "admin.go",
+        "audit_plan.go",
+        "channel_sync.go",
+        "pricing_sync.go",
+        "redemption.go",
+        "stats.go",
+    ],
+    importpath = "github.com/yishuiliunian/nexusapi/backend/internal/interface/http/admin",
+    visibility = ["//backend:__subpackages__"],
+    deps = [
+        "//backend/internal/app/pricing",
+        "//backend/internal/app/subscription",
+        "//backend/internal/domain/audit",
+        "//backend/internal/domain/billing",
+        "//backend/internal/domain/channel",
+        "//backend/internal/domain/payment",
+        "//backend/internal/domain/relay",
+        "//backend/internal/domain/subscription",
+        "//backend/internal/domain/task",
+        "//backend/internal/domain/user",
+        "//backend/internal/infra/db",
+        "//backend/pkg/errors",
+        "//backend/pkg/httperr",
+        "@com_github_gin_gonic_gin//:gin",
+        "@io_gorm_gorm//:gorm",
+    ],
+)

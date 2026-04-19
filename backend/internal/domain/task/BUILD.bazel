@@ -1,0 +1,8 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "task",
+    srcs = ["task.go"],
+    importpath = "github.com/yishuiliunian/nexusapi/backend/internal/domain/task",
+    visibility = ["//backend:__subpackages__"],
+)

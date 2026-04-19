@@ -1,0 +1,16 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "task",
+    srcs = ["task.go"],
+    importpath = "github.com/yishuiliunian/nexusapi/backend/internal/app/task",
+    visibility = ["//backend:__subpackages__"],
+    deps = [
+        "//backend/internal/domain/billing",
+        "//backend/internal/domain/channel",
+        "//backend/internal/domain/relay",
+        "//backend/internal/domain/task",
+        "//backend/pkg/errors",
+        "@com_github_google_uuid//:uuid",
+    ],
+)

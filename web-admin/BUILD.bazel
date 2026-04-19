@@ -1,0 +1,93 @@
+"""web-admin —— Next.js 管理员端。
+
+Bazel target:
+  :next        build
+  :next_dev    dev
+  :next_start  prod start
+  :image       OCI 镜像
+"""
+
+load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
+load("@aspect_rules_js//js:defs.bzl", "js_library")
+load("@npm//:defs.bzl", "npm_link_all_packages")
+load("@npm//web-admin:next/package_json.bzl", next_bin = "bin")
+load("//build:next.bzl", "next")
+load("//build:next_oci.bzl", "next_oci_image")
+
+npm_link_all_packages(name = "node_modules")
+
+next_bin.next_binary(
+    name = "next_js_binary",
+    visibility = ["//visibility:public"],
+)
+
+exports_files([
+    "next.config.ts",
+    "tsconfig.json",
+    "postcss.config.mjs",
+    "tailwind.config.ts",
+])
+
+copy_to_bin(
+    name = "sources",
+    srcs = glob(
+        [
+            "app/**/*.tsx",
+            "app/**/*.ts",
+            "app/**/*.css",
+            "components/**/*.tsx",
+            "components/**/*.ts",
+        ],
+        allow_empty = True,
+    ),
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "public",
+    srcs = glob(
+        ["public/**/*"],
+        allow_empty = True,
+    ),
+    visibility = ["//visibility:public"],
+)
+
+next(
+    name = "next",
+    srcs = [
+        ":public",
+        ":sources",
+        "//web-shared:sources",
+    ],
+    data = [
+        "next.config.ts",
+        "next-env.d.ts",
+        "postcss.config.mjs",
+        "tailwind.config.ts",
+        "tsconfig.json",
+        ":node_modules",
+        "//:package_json_bin",
+    ],
+    next_bin = "./node_modules/.bin/next",
+    next_js_binary = ":next_js_binary",
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "dev",
+    actual = ":next_dev",
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "start",
+    actual = ":next_start",
+    visibility = ["//visibility:public"],
+)
+
+next_oci_image(
+    name = "image",
+    labels = {"org.opencontainers.image.title": "nexusapi-web-admin"},
+    next_build = ":next",
+    repository = "ghcr.io/yishuiliunian/nexusapi-web-admin",
+)

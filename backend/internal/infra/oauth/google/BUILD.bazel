@@ -1,0 +1,15 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "google",
+    srcs = ["google.go"],
+    importpath = "github.com/yishuiliunian/nexusapi/backend/internal/infra/oauth/google",
+    visibility = ["//backend:__subpackages__"],
+    deps = ["//backend/internal/app/oauth"],
+)
+
+go_test(
+    name = "google_test",
+    srcs = ["google_test.go"],
+    embed = [":google"],
+)

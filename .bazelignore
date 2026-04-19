@@ -1,0 +1,22 @@
+# Exclude pre-built outputs & symlinks from Bazel sandboxing
+bazel-bin
+bazel-out
+bazel-testlogs
+bazel-NexusAPI
+
+# pnpm hoists node_modules; Bazel manages its own copy via @npm
+node_modules
+web-user/node_modules
+web-admin/node_modules
+web-shared/node_modules
+e2e/node_modules
+
+# Next.js build artifacts
+web-user/.next
+web-admin/.next
+
+# e2e 临时产物
+e2e/.tmp
+e2e/test-results
+e2e/playwright-report
+.tmp

@@ -1,0 +1,18 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "billing",
+    srcs = [
+        "billing.go",
+        "reservation.go",
+        "uow.go",
+    ],
+    importpath = "github.com/yishuiliunian/nexusapi/backend/internal/domain/billing",
+    visibility = ["//backend:__subpackages__"],
+)
+
+go_test(
+    name = "billing_test",
+    srcs = ["reservation_test.go"],
+    embed = [":billing"],
+)

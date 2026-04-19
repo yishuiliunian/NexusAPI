@@ -1,0 +1,789 @@
+openapi: 3.0.3
+
+info:
+  title: NexusAPI
+  description: |
+    NexusAPI 的 HTTP 契约。两类入口：
+      * `/v1/*` — OpenAI 兼容中继，使用 ApiKey 鉴权（Authorization: Bearer sk-...）
+      * `/api/*` — 前端/管理台，使用 Session Cookie（登录后发的 HttpOnly cookie）
+
+    本文件手工维护，并由 `backend/api/openapi_test.go` 做语法校验。
+    前端通过 `openapi-typescript` 生成 TS 类型：
+      pnpm --filter @nexusapi/shared run api:gen
+  version: 0.1.0
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:8080
+    description: 本地开发
+  - url: https://api.example.com
+    description: 生产（示例）
+
+tags:
+  - name: health
+    description: 健康检查
+  - name: relay
+    description: OpenAI 兼容中继（ApiKey 鉴权）
+  - name: auth
+    description: 注册 / 登录 / 登出（Session Cookie）
+  - name: user
+    description: 账户、ApiKey、消费日志
+  - name: billing
+    description: 充值 / 兑换码
+  - name: twofa
+    description: 两步验证
+
+security: []
+
+paths:
+  /healthz:
+    get:
+      tags: [health]
+      summary: 存活探针
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ok }
+
+  /readyz:
+    get:
+      tags: [health]
+      summary: 就绪探针
+      responses:
+        "200":
+          description: Ready
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ready }
+
+  # ---------- Relay /v1/* ----------
+
+  /v1/chat/completions:
+    post:
+      tags: [relay]
+      summary: 聊天补全（OpenAI 兼容，支持流式）
+      security:
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatCompletionRequest"
+      responses:
+        "200":
+          description: "同步 JSON 或流式 SSE（`stream: true` 时）"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatCompletionResponse"
+            text/event-stream:
+              schema:
+                type: string
+                description: "SSE 序列，遵循 OpenAI `data:` 分块协议，`data: [DONE]` 结束"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "402": { $ref: "#/components/responses/InsufficientQuota" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "502": { $ref: "#/components/responses/UpstreamError" }
+
+  /v1/embeddings:
+    post:
+      tags: [relay]
+      summary: 文本向量化
+      security:
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [model, input]
+              properties:
+                model: { type: string }
+                input:
+                  oneOf:
+                    - type: string
+                    - type: array
+                      items: { type: string }
+                encoding_format:
+                  type: string
+                  enum: [float, base64]
+                dimensions: { type: integer }
+      responses:
+        "200":
+          description: 透传上游向量响应
+          content:
+            application/json:
+              schema: { type: object }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "402": { $ref: "#/components/responses/InsufficientQuota" }
+
+  /v1/rerank:
+    post:
+      tags: [relay]
+      summary: 重排序
+      security:
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        "200": { description: 透传上游响应, content: { application/json: { schema: { type: object } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /v1/images/generations:
+    post:
+      tags: [relay]
+      summary: 图像生成
+      security:
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        "200": { description: 透传上游响应, content: { application/json: { schema: { type: object } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /v1/audio/speech:
+    post:
+      tags: [relay]
+      summary: 文本转语音
+      security:
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        "200": { description: 透传上游响应, content: { application/json: { schema: { type: object } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /v1/audio/transcriptions:
+    post:
+      tags: [relay]
+      summary: 语音转文本
+      security:
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        "200": { description: 透传上游响应, content: { application/json: { schema: { type: object } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /v1/models:
+    get:
+      tags: [relay]
+      summary: 列出可用模型（聚合所有 active 渠道，并去重）
+      security:
+        - apiKeyAuth: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  object: { type: string, example: list }
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:       { type: string }
+                        object:   { type: string, example: model }
+                        provider: { type: string }
+
+  # ---------- Frontend /api/auth/* ----------
+
+  /api/auth/register:
+    post:
+      tags: [auth]
+      summary: 注册
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EmailPassword" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:    { type: integer, format: int64 }
+                  email: { type: string }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "409": { $ref: "#/components/responses/AlreadyExists" }
+
+  /api/auth/login:
+    post:
+      tags: [auth]
+      summary: 登录（成功时 Set-Cookie 登录态）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EmailPassword" }
+      responses:
+        "200":
+          description: OK
+          headers:
+            Set-Cookie:
+              schema: { type: string }
+              description: nexus_session HttpOnly cookie
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:    { type: integer, format: int64 }
+                  email: { type: string }
+                  role:  { type: string, enum: [user, admin] }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/auth/logout:
+    post:
+      tags: [auth]
+      summary: 登出
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OK" }
+
+  # ---------- Frontend /api/user/* ----------
+
+  /api/user/me:
+    get:
+      tags: [user]
+      summary: 当前用户
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserProfile" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/user/apikeys:
+    get:
+      tags: [user]
+      summary: 列出自己的 ApiKey
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/ApiKey" }
+                  total: { type: integer }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+    post:
+      tags: [user]
+      summary: 创建 ApiKey（返回值中的 secret 仅此次可见）
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                model_whitelist:
+                  type: array
+                  items: { type: string }
+                quota_limit:
+                  type: integer
+                  format: int64
+                  description: 可选独立额度（micro-unit）；0 表示不限
+      responses:
+        "200":
+          description: OK（保留 secret！）
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, secret, prefix, suffix]
+                properties:
+                  id:     { type: integer, format: int64 }
+                  name:   { type: string }
+                  secret: { type: string, example: sk-nexus-... }
+                  prefix: { type: string }
+                  suffix: { type: string }
+
+  /api/user/apikeys/{id}:
+    delete:
+      tags: [user]
+      summary: 删除 ApiKey
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, format: int64 }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OK" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/user/usages:
+    get:
+      tags: [user]
+      summary: 调用日志（分页）
+      security:
+        - sessionCookie: []
+      parameters:
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/Size" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/Usage" }
+                  total: { type: integer }
+
+  /api/user/ledgers:
+    get:
+      tags: [user]
+      summary: 账本流水（分页）
+      security:
+        - sessionCookie: []
+      parameters:
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/Size" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/Ledger" }
+                  total: { type: integer }
+
+  # ---------- Billing ----------
+
+  /api/billing/redeem:
+    post:
+      tags: [billing]
+      summary: 兑换码充值
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  amount:
+                    type: integer
+                    format: int64
+                    description: 到账金额（micro-unit）
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # ---------- 2FA ----------
+
+  /api/auth/2fa/setup:
+    post:
+      tags: [twofa]
+      summary: 生成新 TOTP secret（未启用，仅预置）
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: "OK（返回 otpauth:// URL 供二维码渲染）"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  secret: { type: string, description: base32 编码 }
+                  url:    { type: string, description: "otpauth:// 链接" }
+
+  /api/auth/2fa/enable:
+    post:
+      tags: [twofa]
+      summary: 校验一次性码以正式启用
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code: { type: string, example: "123456" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OK" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/auth/2fa/disable:
+    post:
+      tags: [twofa]
+      summary: 禁用 2FA
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OK" }
+
+components:
+
+  securitySchemes:
+    apiKeyAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: sk-nexus-*
+      description: 用户创建的中继 ApiKey（hash 校验）
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: nexus_session
+
+  parameters:
+    Page:
+      name: page
+      in: query
+      required: false
+      schema: { type: integer, minimum: 1, default: 1 }
+    Size:
+      name: size
+      in: query
+      required: false
+      schema: { type: integer, minimum: 1, maximum: 200, default: 20 }
+
+  responses:
+    BadRequest:
+      description: 参数错误
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthorized:
+      description: 未认证或 Session 失效
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Forbidden:
+      description: 权限不足（含模型白名单拒绝）
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: 资源不存在
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    AlreadyExists:
+      description: 资源已存在（如邮箱重复）
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    InsufficientQuota:
+      description: 余额不足
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    UpstreamError:
+      description: 上游供应商错误
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  schemas:
+
+    OK:
+      type: object
+      properties:
+        ok: { type: boolean, example: true }
+
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          description: 领域错误码（见 backend/pkg/errors）
+          enum:
+            - internal
+            - invalid_argument
+            - unauthenticated
+            - permission_denied
+            - not_found
+            - already_exists
+            - rate_limited
+            - insufficient_quota
+            - upstream_error
+            - timeout
+        message:
+          type: string
+
+    EmailPassword:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [user, admin]
+        quota:
+          type: integer
+          format: int64
+          description: 剩余额度（micro-unit）
+        used_quota:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum: [active, banned]
+
+    ApiKey:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        prefix:
+          type: string
+          description: 密钥前缀（sk-nexus-xxxx）
+        suffix:
+          type: string
+          description: 密钥后 4 位
+        model_whitelist:
+          type: array
+          items: { type: string }
+        quota_limit:
+          type: integer
+          format: int64
+        used_quota:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum: [active, banned]
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+        last_used_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    Usage:
+      type: object
+      properties:
+        id:                { type: integer, format: int64 }
+        user_id:           { type: integer, format: int64 }
+        api_key_id:        { type: integer, format: int64 }
+        channel_id:        { type: integer, format: int64 }
+        model:             { type: string }
+        capability:
+          type: string
+          enum: [chat, responses, embedding, rerank, image, tts, stt, realtime, task]
+        prompt_tokens:     { type: integer }
+        completion_tokens: { type: integer }
+        cache_tokens:      { type: integer }
+        cost:
+          type: integer
+          format: int64
+          description: 费用（micro-unit）
+        latency_ms:        { type: integer }
+        status:            { type: string, enum: [success, failed] }
+        error_message:     { type: string, nullable: true }
+        request_id:        { type: string }
+        created_at:        { type: string, format: date-time }
+
+    Ledger:
+      type: object
+      properties:
+        id:         { type: integer, format: int64 }
+        user_id:    { type: integer, format: int64 }
+        type:
+          type: string
+          enum:
+            - reserve
+            - settle
+            - refund
+            - task_charge
+            - task_refund
+            - topup
+            - redeem
+            - subscribe
+            - adjust
+        amount:
+          type: integer
+          format: int64
+          description: 有符号，micro-unit
+        balance:
+          type: integer
+          format: int64
+          description: 变更后用户余额
+        ref_id:     { type: string, description: 关联 ID（usage/reservation/order） }
+        note:       { type: string }
+        created_at: { type: string, format: date-time }
+
+    ChatCompletionRequest:
+      type: object
+      required: [model, messages]
+      properties:
+        model:
+          type: string
+        messages:
+          type: array
+          items: { $ref: "#/components/schemas/ChatMessage" }
+        stream:
+          type: boolean
+          default: false
+        temperature: { type: number, minimum: 0, maximum: 2 }
+        top_p:       { type: number, minimum: 0, maximum: 1 }
+        max_tokens:  { type: integer, minimum: 1 }
+        user:        { type: string }
+        tools:
+          type: array
+          items: { type: object }
+      example:
+        model: gpt-4o-mini
+        stream: true
+        messages:
+          - role: user
+            content: "Hello!"
+
+    ChatMessage:
+      type: object
+      required: [role, content]
+      properties:
+        role:
+          type: string
+          enum: [system, user, assistant, tool]
+        content:
+          description: 可以是纯文本或 content parts 数组
+          oneOf:
+            - type: string
+            - type: array
+              items: { type: object }
+        name:
+          type: string
+        tool_call_id:
+          type: string
+        tool_calls:
+          type: array
+          items: { type: object }
+
+    ChatCompletionResponse:
+      type: object
+      properties:
+        id:    { type: string }
+        model: { type: string }
+        choices:
+          type: array
+          items:
+            type: object
+            properties:
+              index: { type: integer }
+              message:
+                $ref: "#/components/schemas/ChatMessage"
+              finish_reason:
+                type: string
+                enum: [stop, length, tool_calls, content_filter]
+        usage:
+          $ref: "#/components/schemas/TokenUsage"
+
+    TokenUsage:
+      type: object
+      properties:
+        prompt_tokens:      { type: integer }
+        completion_tokens:  { type: integer }
+        total_tokens:       { type: integer }
+        cache_read_tokens:  { type: integer }
+        cache_write_tokens: { type: integer }

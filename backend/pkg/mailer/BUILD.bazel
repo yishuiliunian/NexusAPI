@@ -1,0 +1,8 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "mailer",
+    srcs = ["mailer.go"],
+    importpath = "github.com/yishuiliunian/nexusapi/backend/pkg/mailer",
+    visibility = ["//visibility:public"],
+)

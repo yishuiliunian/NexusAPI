@@ -1,0 +1,243 @@
+// Components Showcase —— 预览所有可复用组件
+
+include "./components.pastel"
+
+canvas "components" {
+    width      = 1400
+    height     = 1700
+    background = #F8FAFC
+}
+
+frame content {
+    width   = fill
+    height  = fill
+    padding = [48, 64]
+    layout  = vertical
+    gap     = 40
+
+    text "NexusAPI 组件库" {
+        size   = 40
+        weight = bold
+        color  = colors.gray-900
+    }
+    text "可复用 UI 单元 · Button / Badge / Input / StatCard / Card" {
+        size   = 16
+        weight = normal
+        color  = colors.gray-500
+    }
+
+    // ---------- Buttons ----------
+    frame buttons-section {
+        width   = fill
+        height  = hug
+        layout  = vertical
+        gap     = 16
+
+        text "Buttons" { size = 20, weight = semibold, color = colors.gray-900 }
+
+        frame wrap {
+            width   = fill
+            height  = hug
+            padding = 24
+            fill    = colors.white
+            radius  = radius.lg
+            stroke  = [1, colors.gray-200]
+            layout  = vertical
+            gap     = 20
+
+            // Primary / Secondary / Ghost / Danger
+            frame row1 {
+                width = fill height = hug layout = horizontal gap = 16 align = center
+
+                use button-primary("Primary Action")
+                use button-secondary("Secondary")
+                use button-ghost("Ghost Link")
+                use button-danger("Delete")
+                use button-sm("Small")
+            }
+
+            // 说明文字
+            text "Primary / Secondary / Ghost / Danger / Small" {
+                size = 12, weight = normal, color = colors.gray-500
+            }
+        }
+    }
+
+    // ---------- Badges ----------
+    frame badges-section {
+        width   = fill
+        height  = hug
+        layout  = vertical
+        gap     = 16
+
+        text "Status Badges" { size = 20, weight = semibold, color = colors.gray-900 }
+
+        frame wrap {
+            width   = fill
+            height  = hug
+            padding = 24
+            fill    = colors.white
+            radius  = radius.lg
+            stroke  = [1, colors.gray-200]
+            layout  = vertical
+            gap     = 16
+
+            frame row {
+                width = fill height = hug layout = horizontal gap = 12 align = center
+
+                use badge-success("● active")
+                use badge-warning("⚠ warning")
+                use badge-danger("● failed")
+                use badge-info("ℹ info")
+                use badge-gray("pending")
+            }
+
+            text "调用状态 / 渠道健康 / 用户状态等枚举" {
+                size = 12, weight = normal, color = colors.gray-500
+            }
+        }
+    }
+
+    // ---------- Inputs ----------
+    frame inputs-section {
+        width   = fill
+        height  = hug
+        layout  = vertical
+        gap     = 16
+
+        text "Inputs" { size = 20, weight = semibold, color = colors.gray-900 }
+
+        frame wrap {
+            width   = fill
+            height  = hug
+            padding = 24
+            fill    = colors.white
+            radius  = radius.lg
+            stroke  = [1, colors.gray-200]
+            layout  = vertical
+            gap     = 16
+
+            frame row1 {
+                width = fill height = hug layout = horizontal gap = 16
+
+                frame col1 {
+                    width = 400 height = hug layout = vertical gap = 6
+                    text "Default" { size = 12, weight = medium, color = colors.gray-600 }
+                    use input-field("输入邮箱或用户名...")
+                }
+                frame col2 {
+                    width = 400 height = hug layout = vertical gap = 6
+                    text "Focused / filled" { size = 12, weight = medium, color = colors.gray-600 }
+                    use input-field-filled("alice@e2e.test")
+                }
+            }
+        }
+    }
+
+    // ---------- StatCards ----------
+    frame stats-section {
+        width   = fill
+        height  = hug
+        layout  = vertical
+        gap     = 16
+
+        text "Stat Cards" { size = 20, weight = semibold, color = colors.gray-900 }
+
+        frame wrap {
+            width = fill height = hug layout = horizontal gap = 16
+
+            use stat-card(
+                "当前余额",
+                "101.0400 元",
+                "累计消耗 5.23 元",
+                colors.primary-500
+            )
+
+            use stat-card(
+                "最近 7 天消耗",
+                "5.23 元",
+                "均 0.75 元/天",
+                colors.chart-3
+            )
+
+            use stat-card(
+                "最近 7 天请求",
+                "1.2k",
+                "均 171 次/天",
+                colors.chart-4
+            )
+
+            use stat-card(
+                "成功率",
+                "98.3%",
+                "基于最近调用",
+                colors.success
+            )
+        }
+    }
+
+    // ---------- Table preview ----------
+    frame table-section {
+        width   = fill
+        height  = hug
+        layout  = vertical
+        gap     = 16
+
+        text "Table" { size = 20, weight = semibold, color = colors.gray-900 }
+
+        frame wrap {
+            width   = fill
+            height  = hug
+            fill    = colors.white
+            radius  = radius.lg
+            stroke  = [1, colors.gray-200]
+            layout  = vertical
+
+            // Header
+            frame header {
+                width  = fill
+                height = hug
+                fill   = colors.gray-50
+                radius = [8, 8, 0, 0]
+                layout = horizontal
+                padding = [0, 4]
+
+                frame h1 { width = 200 height = hug padding = [12, 12] layout = horizontal  text "模型"    { size = 12, weight = semibold, color = colors.gray-600 } }
+                frame h2 { width = 120 height = hug padding = [12, 12] layout = horizontal  text "请求数"  { size = 12, weight = semibold, color = colors.gray-600 } }
+                frame h3 { width = 120 height = hug padding = [12, 12] layout = horizontal  text "消耗(元)" { size = 12, weight = semibold, color = colors.gray-600 } }
+                frame h4 { width = 120 height = hug padding = [12, 12] layout = horizontal  text "状态"    { size = 12, weight = semibold, color = colors.gray-600 } }
+            }
+
+            // Row 1
+            frame row {
+                width   = fill
+                height  = hug
+                layout  = horizontal
+                padding = [0, 4]
+                stroke-dash = [0, 0]
+                stroke  = [1, colors.gray-100]
+
+                frame c1 { width = 200 height = hug padding = [12, 12] layout = horizontal  text "gpt-4o-mini"       { size = 13, weight = medium,  color = colors.gray-800, family = "SF Mono" } }
+                frame c2 { width = 120 height = hug padding = [12, 12] layout = horizontal  text "847"              { size = 13, weight = normal,  color = colors.gray-700 } }
+                frame c3 { width = 120 height = hug padding = [12, 12] layout = horizontal  text "1.2400"          { size = 13, weight = normal,  color = colors.gray-700 } }
+                frame c4 { width = 120 height = hug padding = [12, 12] layout = horizontal align = center
+                    use badge-success("active")
+                }
+            }
+
+            frame row2 {
+                width   = fill
+                height  = hug
+                layout  = horizontal
+                padding = [0, 4]
+
+                frame c1 { width = 200 height = hug padding = [12, 12] layout = horizontal  text "claude-3-5-sonnet"  { size = 13, weight = medium, color = colors.gray-800, family = "SF Mono" } }
+                frame c2 { width = 120 height = hug padding = [12, 12] layout = horizontal  text "342"              { size = 13, weight = normal,  color = colors.gray-700 } }
+                frame c3 { width = 120 height = hug padding = [12, 12] layout = horizontal  text "3.9900"           { size = 13, weight = normal,  color = colors.gray-700 } }
+                frame c4 { width = 120 height = hug padding = [12, 12] layout = horizontal align = center
+                    use badge-warning("limited")
+                }
+            }
+        }
+    }
+}

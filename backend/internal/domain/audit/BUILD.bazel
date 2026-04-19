@@ -1,0 +1,8 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "audit",
+    srcs = ["audit.go"],
+    importpath = "github.com/yishuiliunian/nexusapi/backend/internal/domain/audit",
+    visibility = ["//backend:__subpackages__"],
+)

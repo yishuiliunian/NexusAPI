@@ -1,0 +1,318 @@
+// NexusAPI Design System · Overview
+// 颜色 / 字号 / 间距 / 阴影 / 圆角一览
+
+include "./tokens.pastel"
+
+canvas "design-system" {
+    width      = 1400
+    height     = 1800
+    background = #F8FAFC
+}
+
+frame content {
+    width   = fill
+    height  = fill
+    padding = [48, 64]
+    layout  = vertical
+    gap     = 40
+
+    // ---------- Header ----------
+    frame header {
+        width   = fill
+        height  = hug
+        layout  = vertical
+        gap     = 8
+
+        text "NexusAPI Design System" {
+            size        = 40
+            weight      = bold
+            color       = colors.gray-900
+            line-height = 48
+        }
+        text "AI 大模型中转网关 · 设计规范与 Token 参考" {
+            size        = 16
+            weight      = normal
+            color       = colors.gray-500
+            line-height = 24
+        }
+    }
+
+    // ---------- 颜色系统 ----------
+    frame color-section {
+        width   = fill
+        height  = hug
+        layout  = vertical
+        gap     = 20
+
+        text "Colors" {
+            size   = 24
+            weight = semibold
+            color  = colors.gray-900
+        }
+
+        // Brand
+        frame brand-row {
+            width  = fill
+            height = hug
+            layout = vertical
+            gap    = 12
+
+            text "Brand" { size = 14, weight = medium, color = colors.gray-600 }
+
+            frame swatches {
+                width  = fill
+                height = hug
+                layout = horizontal
+                gap    = 12
+
+                frame s1 {
+                    width = 120 height = 96 layout = vertical justify = end padding = 12
+                    fill = colors.primary-50    radius = radius.md
+                    text "primary-50" { size = 11, weight = medium, color = colors.gray-700 }
+                    text "#EFF6FF"    { size = 11, weight = normal, color = colors.gray-500 }
+                }
+                frame s2 {
+                    width = 120 height = 96 layout = vertical justify = end padding = 12
+                    fill = colors.primary-100   radius = radius.md
+                    text "primary-100" { size = 11, weight = medium, color = colors.gray-700 }
+                    text "#DBEAFE"     { size = 11, weight = normal, color = colors.gray-500 }
+                }
+                frame s3 {
+                    width = 120 height = 96 layout = vertical justify = end padding = 12
+                    fill = colors.primary-400   radius = radius.md
+                    text "primary-400" { size = 11, weight = medium, color = colors.white }
+                    text "#60A5FA"     { size = 11, weight = normal, color = #FFFFFFCC }
+                }
+                frame s4 {
+                    width = 120 height = 96 layout = vertical justify = end padding = 12
+                    fill = colors.primary-500   radius = radius.md
+                    text "primary-500" { size = 11, weight = medium, color = colors.white }
+                    text "#3B82F6"     { size = 11, weight = normal, color = #FFFFFFCC }
+                }
+                frame s5 {
+                    width = 120 height = 96 layout = vertical justify = end padding = 12
+                    fill = colors.primary-600   radius = radius.md
+                    text "primary-600" { size = 11, weight = medium, color = colors.white }
+                    text "#2563EB"     { size = 11, weight = normal, color = #FFFFFFCC }
+                }
+            }
+        }
+
+        // Status
+        frame status-row {
+            width  = fill
+            height = hug
+            layout = vertical
+            gap    = 12
+
+            text "Status" { size = 14, weight = medium, color = colors.gray-600 }
+
+            frame sw {
+                width  = fill
+                height = hug
+                layout = horizontal
+                gap    = 12
+
+                frame a {
+                    width = 120 height = 96 layout = vertical justify = end padding = 12
+                    fill = colors.success radius = radius.md
+                    text "success" { size = 11, weight = medium, color = colors.white }
+                    text "#10B981" { size = 11, weight = normal, color = #FFFFFFCC }
+                }
+                frame b {
+                    width = 120 height = 96 layout = vertical justify = end padding = 12
+                    fill = colors.warning radius = radius.md
+                    text "warning" { size = 11, weight = medium, color = colors.white }
+                    text "#F59E0B" { size = 11, weight = normal, color = #FFFFFFCC }
+                }
+                frame c {
+                    width = 120 height = 96 layout = vertical justify = end padding = 12
+                    fill = colors.danger radius = radius.md
+                    text "danger" { size = 11, weight = medium, color = colors.white }
+                    text "#EF4444" { size = 11, weight = normal, color = #FFFFFFCC }
+                }
+                frame d {
+                    width = 120 height = 96 layout = vertical justify = end padding = 12
+                    fill = colors.info radius = radius.md
+                    text "info"    { size = 11, weight = medium, color = colors.white }
+                    text "#06B6D4" { size = 11, weight = normal, color = #FFFFFFCC }
+                }
+            }
+        }
+
+        // Gray scale
+        frame gray-row {
+            width  = fill
+            height = hug
+            layout = vertical
+            gap    = 12
+
+            text "Gray Scale" { size = 14, weight = medium, color = colors.gray-600 }
+
+            frame sw {
+                width  = fill
+                height = hug
+                layout = horizontal
+                gap    = 8
+
+                frame g50  { width = 100 height = 72 layout = vertical justify = end padding = 8  fill = colors.gray-50  radius = radius.sm  stroke = [1, colors.gray-200]  text "50"  { size = 11, weight = medium, color = colors.gray-900 } }
+                frame g100 { width = 100 height = 72 layout = vertical justify = end padding = 8  fill = colors.gray-100 radius = radius.sm  text "100" { size = 11, weight = medium, color = colors.gray-900 } }
+                frame g200 { width = 100 height = 72 layout = vertical justify = end padding = 8  fill = colors.gray-200 radius = radius.sm  text "200" { size = 11, weight = medium, color = colors.gray-900 } }
+                frame g300 { width = 100 height = 72 layout = vertical justify = end padding = 8  fill = colors.gray-300 radius = radius.sm  text "300" { size = 11, weight = medium, color = colors.gray-900 } }
+                frame g400 { width = 100 height = 72 layout = vertical justify = end padding = 8  fill = colors.gray-400 radius = radius.sm  text "400" { size = 11, weight = medium, color = colors.white } }
+                frame g500 { width = 100 height = 72 layout = vertical justify = end padding = 8  fill = colors.gray-500 radius = radius.sm  text "500" { size = 11, weight = medium, color = colors.white } }
+                frame g600 { width = 100 height = 72 layout = vertical justify = end padding = 8  fill = colors.gray-600 radius = radius.sm  text "600" { size = 11, weight = medium, color = colors.white } }
+                frame g700 { width = 100 height = 72 layout = vertical justify = end padding = 8  fill = colors.gray-700 radius = radius.sm  text "700" { size = 11, weight = medium, color = colors.white } }
+                frame g800 { width = 100 height = 72 layout = vertical justify = end padding = 8  fill = colors.gray-800 radius = radius.sm  text "800" { size = 11, weight = medium, color = colors.white } }
+                frame g900 { width = 100 height = 72 layout = vertical justify = end padding = 8  fill = colors.gray-900 radius = radius.sm  text "900" { size = 11, weight = medium, color = colors.white } }
+            }
+        }
+
+        // Chart palette
+        frame chart-row {
+            width  = fill
+            height = hug
+            layout = vertical
+            gap    = 12
+
+            text "Chart Palette" { size = 14, weight = medium, color = colors.gray-600 }
+
+            frame sw {
+                width  = fill
+                height = hug
+                layout = horizontal
+                gap    = 8
+
+                frame c1  { width = 100 height = 56 layout = vertical justify = end padding = 8 fill = colors.chart-1  radius = radius.sm  text "1" { size = 12, weight = bold, color = colors.white } }
+                frame c2  { width = 100 height = 56 layout = vertical justify = end padding = 8 fill = colors.chart-2  radius = radius.sm  text "2" { size = 12, weight = bold, color = colors.white } }
+                frame c3  { width = 100 height = 56 layout = vertical justify = end padding = 8 fill = colors.chart-3  radius = radius.sm  text "3" { size = 12, weight = bold, color = colors.white } }
+                frame c4  { width = 100 height = 56 layout = vertical justify = end padding = 8 fill = colors.chart-4  radius = radius.sm  text "4" { size = 12, weight = bold, color = colors.white } }
+                frame c5  { width = 100 height = 56 layout = vertical justify = end padding = 8 fill = colors.chart-5  radius = radius.sm  text "5" { size = 12, weight = bold, color = colors.white } }
+                frame c6  { width = 100 height = 56 layout = vertical justify = end padding = 8 fill = colors.chart-6  radius = radius.sm  text "6" { size = 12, weight = bold, color = colors.white } }
+                frame c7  { width = 100 height = 56 layout = vertical justify = end padding = 8 fill = colors.chart-7  radius = radius.sm  text "7" { size = 12, weight = bold, color = colors.white } }
+                frame c8  { width = 100 height = 56 layout = vertical justify = end padding = 8 fill = colors.chart-8  radius = radius.sm  text "8" { size = 12, weight = bold, color = colors.white } }
+                frame c9  { width = 100 height = 56 layout = vertical justify = end padding = 8 fill = colors.chart-9  radius = radius.sm  text "9" { size = 12, weight = bold, color = colors.white } }
+                frame c10 { width = 100 height = 56 layout = vertical justify = end padding = 8 fill = colors.chart-10 radius = radius.sm  text "10" { size = 12, weight = bold, color = colors.white } }
+            }
+        }
+    }
+
+    // ---------- Typography ----------
+    frame type-section {
+        width   = fill
+        height  = hug
+        layout  = vertical
+        gap     = 16
+
+        text "Typography" { size = 24, weight = semibold, color = colors.gray-900 }
+
+        frame list {
+            width   = fill
+            height  = hug
+            padding = 24
+            fill    = colors.white
+            radius  = radius.lg
+            stroke  = [1, colors.gray-200]
+            layout  = vertical
+            gap     = 16
+
+            text "H1 — 32 / bold — 页面主标题"         { size = 32, weight = bold,     color = colors.gray-900 }
+            text "H2 — 24 / semibold — 区块标题"       { size = 24, weight = semibold, color = colors.gray-900 }
+            text "H3 — 20 / semibold — 卡片标题"       { size = 20, weight = semibold, color = colors.gray-900 }
+            text "H4 — 18 / semibold — 子标题"         { size = 18, weight = semibold, color = colors.gray-900 }
+            text "Body Lg — 16 / normal — 主要正文段落，使用于较长文本" { size = 16, weight = normal, color = colors.gray-700 }
+            text "Body — 14 / normal — 常规正文"       { size = 14, weight = normal, color = colors.gray-700 }
+            text "Body Sm — 13 / normal — 次要正文"    { size = 13, weight = normal, color = colors.gray-600 }
+            text "Caption — 12 / normal — 辅助说明 / 时间戳 / 标签" { size = 12, weight = normal, color = colors.gray-500 }
+            text "STAT — 32 / bold — 101.0400"          { size = 32, weight = bold,   color = colors.primary-600, family = "SF Mono" }
+        }
+    }
+
+    // ---------- Spacing + Radius ----------
+    frame bottom-row {
+        width  = fill
+        height = hug
+        layout = horizontal
+        gap    = 24
+
+        // Spacing
+        frame spacing-block {
+            width   = 600
+            height  = hug
+            padding = 24
+            fill    = colors.white
+            radius  = radius.lg
+            stroke  = [1, colors.gray-200]
+            layout  = vertical
+            gap     = 14
+
+            text "Spacing Scale" { size = 18, weight = semibold, color = colors.gray-900 }
+
+            frame r1 { width = fill height = hug layout = horizontal gap = 16 align = center
+                frame bar { width = 4  height = 16 fill = colors.primary-500 radius = 2 }
+                text "xs — 4"  { size = 13, weight = normal, color = colors.gray-600 }
+            }
+            frame r2 { width = fill height = hug layout = horizontal gap = 16 align = center
+                frame bar { width = 8  height = 16 fill = colors.primary-500 radius = 2 }
+                text "sm — 8"  { size = 13, weight = normal, color = colors.gray-600 }
+            }
+            frame r3 { width = fill height = hug layout = horizontal gap = 16 align = center
+                frame bar { width = 12 height = 16 fill = colors.primary-500 radius = 2 }
+                text "md — 12" { size = 13, weight = normal, color = colors.gray-600 }
+            }
+            frame r4 { width = fill height = hug layout = horizontal gap = 16 align = center
+                frame bar { width = 16 height = 16 fill = colors.primary-500 radius = 2 }
+                text "lg — 16" { size = 13, weight = normal, color = colors.gray-600 }
+            }
+            frame r5 { width = fill height = hug layout = horizontal gap = 16 align = center
+                frame bar { width = 24 height = 16 fill = colors.primary-500 radius = 2 }
+                text "xl — 24" { size = 13, weight = normal, color = colors.gray-600 }
+            }
+            frame r6 { width = fill height = hug layout = horizontal gap = 16 align = center
+                frame bar { width = 32 height = 16 fill = colors.primary-500 radius = 2 }
+                text "xxl — 32" { size = 13, weight = normal, color = colors.gray-600 }
+            }
+            frame r7 { width = fill height = hug layout = horizontal gap = 16 align = center
+                frame bar { width = 48 height = 16 fill = colors.primary-500 radius = 2 }
+                text "xxxl — 48" { size = 13, weight = normal, color = colors.gray-600 }
+            }
+        }
+
+        // Radius
+        frame radius-block {
+            width   = 600
+            height  = hug
+            padding = 24
+            fill    = colors.white
+            radius  = radius.lg
+            stroke  = [1, colors.gray-200]
+            layout  = vertical
+            gap     = 16
+
+            text "Radius" { size = 18, weight = semibold, color = colors.gray-900 }
+
+            frame grid {
+                width = fill height = hug layout = horizontal gap = 16 align = center
+
+                frame sq1 { width = 80 height = 80 fill = colors.primary-100 radius = radius.xs layout = vertical justify = center align = center
+                    text "xs = 4" { size = 11, weight = medium, color = colors.primary-600 }
+                }
+                frame sq2 { width = 80 height = 80 fill = colors.primary-100 radius = radius.sm layout = vertical justify = center align = center
+                    text "sm = 6" { size = 11, weight = medium, color = colors.primary-600 }
+                }
+                frame sq3 { width = 80 height = 80 fill = colors.primary-100 radius = radius.md layout = vertical justify = center align = center
+                    text "md = 8" { size = 11, weight = medium, color = colors.primary-600 }
+                }
+                frame sq4 { width = 80 height = 80 fill = colors.primary-100 radius = radius.lg layout = vertical justify = center align = center
+                    text "lg = 12" { size = 11, weight = medium, color = colors.primary-600 }
+                }
+                frame sq5 { width = 80 height = 80 fill = colors.primary-100 radius = radius.xl layout = vertical justify = center align = center
+                    text "xl = 16" { size = 11, weight = medium, color = colors.primary-600 }
+                }
+                frame sq6 { width = 80 height = 80 fill = colors.primary-100 radius = radius.full layout = vertical justify = center align = center
+                    text "full" { size = 11, weight = medium, color = colors.primary-600 }
+                }
+            }
+        }
+    }
+}

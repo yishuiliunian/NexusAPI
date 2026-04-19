@@ -1,0 +1,26 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "cache",
+    srcs = [
+        "redis.go",
+        "reservation.go",
+    ],
+    importpath = "github.com/yishuiliunian/nexusapi/backend/internal/infra/cache",
+    visibility = ["//backend:__subpackages__"],
+    deps = [
+        "//backend/internal/domain/billing",
+        "@com_github_redis_go_redis_v9//:go-redis",
+    ],
+)
+
+go_test(
+    name = "cache_test",
+    srcs = ["reservation_test.go"],
+    embed = [":cache"],
+    deps = [
+        "//backend/internal/domain/billing",
+        "@com_github_alicebob_miniredis_v2//:miniredis",
+        "@com_github_redis_go_redis_v9//:go-redis",
+    ],
+)

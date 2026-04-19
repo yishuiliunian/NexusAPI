@@ -1,0 +1,11 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "ratelimit",
+    srcs = ["ratelimit.go"],
+    importpath = "github.com/yishuiliunian/nexusapi/backend/pkg/ratelimit",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@com_github_redis_go_redis_v9//:go-redis",
+    ],
+)

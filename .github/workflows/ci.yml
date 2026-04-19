@@ -1,0 +1,125 @@
+# CI 主流水线：仓库 push/PR 触发。
+#
+# 切到 Bazel 后的策略：
+#   - bazel job：构建所有目标（Go + Next.js + OCI 镜像）+ 跑 Bazel 原生测试
+#   - frontend-unit job：vitest 暂未进 Bazel，单独跑
+#   - e2e job：Playwright 浏览器二进制不适合 sandbox，独立用 pnpm 跑
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Bazel 一把梭：Go 后端 + Next.js 前端 + OCI 镜像
+  bazel:
+    name: bazel build + test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: bazel-contrib/setup-bazel@0.9.1
+        with:
+          bazelisk-cache: true
+          disk-cache: ${{ github.workflow }}
+          repository-cache: true
+
+      - name: bazel build //...
+        run: bazel build //...
+
+      - name: bazel test //...
+        run: bazel test //... --test_output=errors
+
+  # 前端 vitest（shared 包）；将来统一到 jest_test 后再合并到 bazel job
+  frontend-unit:
+    name: frontend vitest
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+
+      - name: install
+        run: pnpm install --frozen-lockfile
+
+      - name: typecheck
+        run: pnpm -r typecheck
+
+      - name: test shared
+        run: pnpm --filter @nexusapi/shared test
+
+  # e2e: 实栈 Playwright 测试
+  e2e:
+    name: e2e (playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    needs: [bazel, frontend-unit]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: bazel-contrib/setup-bazel@0.9.1
+        with:
+          bazelisk-cache: true
+          disk-cache: ${{ github.workflow }}
+          repository-cache: true
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+
+      - name: install sqlite3 CLI (for DB helper queries)
+        run: sudo apt-get update && sudo apt-get install -y sqlite3
+
+      - name: install deps
+        run: pnpm install --frozen-lockfile
+
+      - name: install playwright browsers
+        run: pnpm --filter @nexusapi/e2e install-browsers
+
+      - name: run user + admin + integration
+        run: pnpm --filter @nexusapi/e2e test -- --project=user --project=admin --project=integration
+
+      - name: run a11y
+        run: pnpm --filter @nexusapi/e2e test -- --project=a11y
+
+      - name: run visual regression
+        run: pnpm --filter @nexusapi/e2e test -- --project=visual
+        continue-on-error: true  # OS 差异导致的基线偏差作为 observation
+
+      - name: upload playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            e2e/playwright-report
+            e2e/test-results
+          retention-days: 14
+
+      - name: upload backend logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-backend-artifacts
+          path: e2e/.tmp
+          retention-days: 7

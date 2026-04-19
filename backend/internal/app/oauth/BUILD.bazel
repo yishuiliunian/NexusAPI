@@ -1,0 +1,24 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "oauth",
+    srcs = ["oauth.go"],
+    importpath = "github.com/yishuiliunian/nexusapi/backend/internal/app/oauth",
+    visibility = ["//backend:__subpackages__"],
+    deps = [
+        "//backend/internal/domain/oauth",
+        "//backend/internal/domain/user",
+        "//backend/pkg/errors",
+    ],
+)
+
+go_test(
+    name = "oauth_test",
+    srcs = ["oauth_test.go"],
+    embed = [":oauth"],
+    deps = [
+        "//backend/internal/domain/oauth",
+        "//backend/internal/domain/user",
+        "//backend/pkg/errors",
+    ],
+)

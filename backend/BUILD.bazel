@@ -1,0 +1,6 @@
+# backend 顶层 package。实际目标分布在子目录：
+#   //backend/cmd/server   : HTTP 服务
+#   //backend/cmd/worker   : asynq worker
+#   //backend/cmd/migrate  : 数据库迁移 CLI
+
+package(default_visibility = ["//visibility:public"])

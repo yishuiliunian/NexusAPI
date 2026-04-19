@@ -1,0 +1,12 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "openaicompat",
+    srcs = ["openaicompat.go"],
+    importpath = "github.com/yishuiliunian/nexusapi/backend/internal/infra/provider/openaicompat",
+    visibility = ["//backend:__subpackages__"],
+    deps = [
+        "//backend/internal/infra/provider",
+        "//backend/internal/infra/provider/openai",
+    ],
+)

@@ -1,0 +1,37 @@
+load("@rules_go//go:def.bzl", "go_binary", "go_library")
+load("//build:oci.bzl", "go_oci_image")
+
+go_library(
+    name = "worker_lib",
+    srcs = ["main.go"],
+    importpath = "github.com/yishuiliunian/nexusapi/backend/cmd/worker",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//backend/internal/app/alert",
+        "//backend/internal/app/billing",
+        "//backend/internal/app/subscription",
+        "//backend/internal/app/task",
+        "//backend/internal/config",
+        "//backend/internal/infra/db",
+        "//backend/internal/infra/provider",
+        "//backend/internal/infra/provider/providers",
+        "//backend/pkg/crypto",
+        "//backend/pkg/httpclient",
+        "//backend/pkg/logger",
+        "//backend/pkg/mailer",
+        "@com_github_hibiken_asynq//:asynq",
+        "@org_uber_go_zap//:zap",
+    ],
+)
+
+go_binary(
+    name = "worker",
+    embed = [":worker_lib"],
+    visibility = ["//visibility:public"],
+)
+
+go_oci_image(
+    name = "image",
+    binary = ":worker",
+    repository = "ghcr.io/yishuiliunian/nexusapi-worker",
+)

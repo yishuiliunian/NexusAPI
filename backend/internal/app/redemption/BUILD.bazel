@@ -1,0 +1,24 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "redemption",
+    srcs = ["redemption.go"],
+    importpath = "github.com/yishuiliunian/nexusapi/backend/internal/app/redemption",
+    visibility = ["//backend:__subpackages__"],
+    deps = [
+        "//backend/internal/domain/billing",
+        "//backend/internal/domain/redemption",
+        "//backend/pkg/errors",
+    ],
+)
+
+go_test(
+    name = "redemption_test",
+    srcs = ["redemption_test.go"],
+    embed = [":redemption"],
+    deps = [
+        "//backend/internal/domain/billing",
+        "//backend/internal/domain/redemption",
+        "//backend/pkg/errors",
+    ],
+)

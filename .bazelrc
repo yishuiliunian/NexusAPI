@@ -1,0 +1,46 @@
+# 启用 Bzlmod（默认，兼容老 bazel）
+common --enable_bzlmod
+
+# 构建：debug 模式（本地开发），release 用 --compilation_mode=opt
+build --compilation_mode=dbg
+
+# 构建时通过脚本注入版本/提交信息，用于 OCI 镜像 stamp
+build --workspace_status_command=./build/workspace_status.sh
+
+# 测试输出只看失败 + 详细摘要
+test --test_output=errors
+test --test_summary=detailed
+
+# ---------- 缓存 ----------
+# 本地磁盘缓存和 repo 缓存（速度显著提升）
+build --disk_cache=~/.cache/bazel-disk
+build --repository_cache=~/.cache/bazel-repo
+# 远程缓存里只下载必要字节
+build --remote_download_minimal
+# 失败后继续构建其他目标
+build --keep_going
+# 进度显示时间戳
+common --show_timestamps
+
+# ---------- Go ----------
+# 纯 Go（无 CGO）→ 静态二进制，方便 distroless 部署
+build --@rules_go//go/config:pure
+# 为 Bazel 动作使用内置 JDK
+build --java_runtime_version=remotejdk_21
+
+# ---------- pnpm/rules_js ----------
+common --allow_unresolved_symlinks
+
+# ---------- 跨平台 Linux 容器 ----------
+build:linux_amd64 --platforms=@rules_go//go/toolchain:linux_amd64
+build:linux_arm64 --platforms=@rules_go//go/toolchain:linux_arm64
+
+# ---------- CI 预设 ----------
+build:ci --repository_cache=/root/.cache/bazel-repo
+build:ci --disk_cache=
+build:ci --color=yes
+build:ci --show_progress_rate_limit=5
+build:ci --stamp
+
+# 引入本地 override（可选，gitignored）
+try-import %workspace%/.bazelrc.local

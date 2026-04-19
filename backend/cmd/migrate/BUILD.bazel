@@ -1,0 +1,29 @@
+load("@rules_go//go:def.bzl", "go_binary", "go_library")
+load("//build:oci.bzl", "go_oci_image")
+
+go_library(
+    name = "migrate_lib",
+    srcs = ["main.go"],
+    importpath = "github.com/yishuiliunian/nexusapi/backend/cmd/migrate",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//backend/internal/config",
+        "@com_github_golang_migrate_migrate_v4//:migrate",
+        "@com_github_golang_migrate_migrate_v4//database/postgres",
+        "@com_github_golang_migrate_migrate_v4//database/sqlite3",
+        "@com_github_golang_migrate_migrate_v4//source/file",
+        "@com_github_spf13_cobra//:cobra",
+    ],
+)
+
+go_binary(
+    name = "migrate",
+    embed = [":migrate_lib"],
+    visibility = ["//visibility:public"],
+)
+
+go_oci_image(
+    name = "image",
+    binary = ":migrate",
+    repository = "ghcr.io/yishuiliunian/nexusapi-migrate",
+)

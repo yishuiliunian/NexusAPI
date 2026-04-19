@@ -1,0 +1,30 @@
+{
+  "name": "nexusapi",
+  "version": "0.1.0",
+  "private": true,
+  "description": "NexusAPI — AI 大模型中转网关 · monorepo 根配置",
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=20.9.0",
+    "pnpm": ">=9.0.0"
+  },
+  "scripts": {
+    "dev": "node scripts/dev-stack.mjs",
+    "dev:reset": "node scripts/dev-stack.mjs --reset",
+    "dev:user-only": "node scripts/dev-stack.mjs --no-admin",
+    "dev:user": "pnpm --filter @nexusapi/web-user dev",
+    "dev:admin": "pnpm --filter @nexusapi/web-admin dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "format": "prettier --write \"**/*.{ts,tsx,json,md,yaml}\"",
+    "stop": "node scripts/stop-stack.mjs"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": []
+  },
+  "devDependencies": {
+    "prettier": "^3.4.2",
+    "typescript": "5.7.3"
+  }
+}

@@ -1,0 +1,22 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "keys",
+    srcs = ["apikey.go"],
+    importpath = "github.com/yishuiliunian/nexusapi/backend/internal/app/keys",
+    visibility = ["//backend:__subpackages__"],
+    deps = [
+        "//backend/internal/domain/apikey",
+        "//backend/pkg/errors",
+    ],
+)
+
+go_test(
+    name = "keys_test",
+    srcs = ["apikey_test.go"],
+    embed = [":keys"],
+    deps = [
+        "//backend/internal/domain/apikey",
+        "//backend/pkg/errors",
+    ],
+)

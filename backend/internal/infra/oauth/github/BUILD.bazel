@@ -1,0 +1,15 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "github",
+    srcs = ["github.go"],
+    importpath = "github.com/yishuiliunian/nexusapi/backend/internal/infra/oauth/github",
+    visibility = ["//backend:__subpackages__"],
+    deps = ["//backend/internal/app/oauth"],
+)
+
+go_test(
+    name = "github_test",
+    srcs = ["github_test.go"],
+    embed = [":github"],
+)

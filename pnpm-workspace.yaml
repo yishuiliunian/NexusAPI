@@ -1,0 +1,5 @@
+packages:
+  - "web-user"
+  - "web-admin"
+  - "web-shared"
+  - "e2e"

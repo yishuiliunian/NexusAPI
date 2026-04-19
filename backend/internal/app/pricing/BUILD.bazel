@@ -1,0 +1,16 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "pricing",
+    srcs = ["sync.go"],
+    importpath = "github.com/yishuiliunian/nexusapi/backend/internal/app/pricing",
+    visibility = ["//backend:__subpackages__"],
+    deps = ["//backend/internal/domain/billing"],
+)
+
+go_test(
+    name = "pricing_test",
+    srcs = ["sync_test.go"],
+    embed = [":pricing"],
+    deps = ["//backend/internal/domain/billing"],
+)

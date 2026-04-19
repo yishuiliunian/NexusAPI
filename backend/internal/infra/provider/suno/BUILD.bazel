@@ -1,0 +1,19 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "suno",
+    srcs = ["adaptor.go"],
+    importpath = "github.com/yishuiliunian/nexusapi/backend/internal/infra/provider/suno",
+    visibility = ["//backend:__subpackages__"],
+    deps = [
+        "//backend/internal/domain/relay",
+        "//backend/internal/infra/provider",
+    ],
+)
+
+go_test(
+    name = "suno_test",
+    srcs = ["adaptor_test.go"],
+    embed = [":suno"],
+    deps = ["//backend/internal/domain/relay"],
+)

@@ -1,0 +1,8 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "redemption",
+    srcs = ["redemption.go"],
+    importpath = "github.com/yishuiliunian/nexusapi/backend/internal/domain/redemption",
+    visibility = ["//backend:__subpackages__"],
+)

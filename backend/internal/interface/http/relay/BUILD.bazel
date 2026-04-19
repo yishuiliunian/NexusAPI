@@ -1,0 +1,17 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "relay",
+    srcs = ["relay.go"],
+    importpath = "github.com/yishuiliunian/nexusapi/backend/internal/interface/http/relay",
+    visibility = ["//backend:__subpackages__"],
+    deps = [
+        "//backend/internal/app/billing",
+        "//backend/internal/app/keys",
+        "//backend/internal/app/relay",
+        "//backend/internal/domain/channel",
+        "//backend/internal/interface/http/middleware",
+        "//backend/pkg/httperr",
+        "@com_github_gin_gonic_gin//:gin",
+    ],
+)
