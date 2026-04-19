@@ -24,20 +24,21 @@ http:
       service: web-user
       middlewares: [security-headers, compress-all]
 
-    # ---------- :3443 admin 入口（仅 TS） ----------
+    # ---------- :3443 admin 入口 ----------
+    # 注：当前放开 IP 限制，仅通过 :3443 端口区分。
+    # 生产要限 TS 时把 middlewares 加回 [ts-only] / [ts-only, compress-all]
     server-admin:
       entryPoints: [admin]
       rule: "PathPrefix(`/api`) || PathPrefix(`/v1`) || Path(`/healthz`)"
       priority: 100
       service: server
-      middlewares: [ts-only]
 
     web-admin:
       entryPoints: [admin]
       rule: "PathPrefix(`/`)"
       priority: 1
       service: web-admin
-      middlewares: [ts-only, compress-all]
+      middlewares: [compress-all]
 
   services:
     server:
