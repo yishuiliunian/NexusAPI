@@ -78,7 +78,7 @@ export default function ModelsPage() {
         <PageHeader
           dark
           title="模型价格"
-          description="按 model + capability upsert · 价格单位为 micro (1 元 = 1,000,000)"
+          description="按 model + capability upsert · 价格单位：元 / 1M tokens"
           actions={
             <Button onClick={syncFromLiteLLM} disabled={syncing}>
               {syncing ? '同步中…' : '从 LiteLLM 同步'}
@@ -108,35 +108,47 @@ export default function ModelsPage() {
                 ))}
               </select>
             </Field>
-            <Field label="input_price (per 1M token)">
+            <Field label="input 价（元 / 1M tokens）">
               <Input
                 type="number"
-                value={form.input_price ?? 0}
-                onChange={(e) => setForm({ ...form, input_price: Number(e.target.value) })}
+                step="0.0001"
+                value={(form.input_price ?? 0) / 1_000_000}
+                onChange={(e) =>
+                  setForm({ ...form, input_price: Math.round(Number(e.target.value) * 1_000_000) })
+                }
                 className="bg-slate-900 text-white border-slate-700 font-mono"
               />
             </Field>
-            <Field label="output_price">
+            <Field label="output 价（元 / 1M tokens）">
               <Input
                 type="number"
-                value={form.output_price ?? 0}
-                onChange={(e) => setForm({ ...form, output_price: Number(e.target.value) })}
+                step="0.0001"
+                value={(form.output_price ?? 0) / 1_000_000}
+                onChange={(e) =>
+                  setForm({ ...form, output_price: Math.round(Number(e.target.value) * 1_000_000) })
+                }
                 className="bg-slate-900 text-white border-slate-700 font-mono"
               />
             </Field>
-            <Field label="cache_price">
+            <Field label="cache 读价（元 / 1M tokens）">
               <Input
                 type="number"
-                value={form.cache_price ?? 0}
-                onChange={(e) => setForm({ ...form, cache_price: Number(e.target.value) })}
+                step="0.0001"
+                value={(form.cache_price ?? 0) / 1_000_000}
+                onChange={(e) =>
+                  setForm({ ...form, cache_price: Math.round(Number(e.target.value) * 1_000_000) })
+                }
                 className="bg-slate-900 text-white border-slate-700 font-mono"
               />
             </Field>
-            <Field label="task_price (按次)">
+            <Field label="task 按次价（元 / 次）">
               <Input
                 type="number"
-                value={form.task_price ?? 0}
-                onChange={(e) => setForm({ ...form, task_price: Number(e.target.value) })}
+                step="0.0001"
+                value={(form.task_price ?? 0) / 1_000_000}
+                onChange={(e) =>
+                  setForm({ ...form, task_price: Math.round(Number(e.target.value) * 1_000_000) })
+                }
                 className="bg-slate-900 text-white border-slate-700 font-mono"
               />
             </Field>
@@ -175,10 +187,18 @@ export default function ModelsPage() {
                   <td className="px-5 py-3">
                     <Badge variant="neutral">{p.capability}</Badge>
                   </td>
-                  <td className="px-5 py-3 text-right font-mono text-slate-300">{p.input_price}</td>
-                  <td className="px-5 py-3 text-right font-mono text-slate-300">{p.output_price}</td>
-                  <td className="px-5 py-3 text-right font-mono text-slate-400">{p.cache_price}</td>
-                  <td className="px-5 py-3 text-right font-mono text-slate-400">{p.task_price}</td>
+                  <td className="px-5 py-3 text-right font-mono text-slate-300">
+                    ¥{(p.input_price / 1_000_000).toFixed(4)}
+                  </td>
+                  <td className="px-5 py-3 text-right font-mono text-slate-300">
+                    ¥{(p.output_price / 1_000_000).toFixed(4)}
+                  </td>
+                  <td className="px-5 py-3 text-right font-mono text-slate-400">
+                    ¥{(p.cache_price / 1_000_000).toFixed(4)}
+                  </td>
+                  <td className="px-5 py-3 text-right font-mono text-slate-400">
+                    ¥{(p.task_price / 1_000_000).toFixed(4)}
+                  </td>
                   <td className="px-5 py-3">
                     <Badge variant={p.enabled ? 'success' : 'neutral'}>
                       {p.enabled ? 'on' : 'off'}

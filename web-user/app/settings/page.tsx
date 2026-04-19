@@ -212,13 +212,15 @@ export default function SettingsPage() {
           <div className="flex items-center gap-3 p-5">
             <Input
               type="number"
-              value={alertAt}
-              onChange={(e) => setAlertAt(Number(e.target.value))}
+              step="0.0001"
+              min="0"
+              value={(alertAt / 1_000_000).toString()}
+              onChange={(e) => setAlertAt(Math.round(Number(e.target.value) * 1_000_000))}
               className="w-48 font-mono"
               placeholder="0 = 关闭"
             />
             <span className="text-xs text-slate-500">
-              micro（1 元 = 1,000,000） · 当前：{alertAt > 0 ? `¥${YUAN(alertAt)}` : '关闭'}
+              元 · 当前：{alertAt > 0 ? `¥${YUAN(alertAt)}` : '关闭'}
             </span>
             <div className="flex-1" />
             <Button variant="secondary" onClick={saveAlert}>

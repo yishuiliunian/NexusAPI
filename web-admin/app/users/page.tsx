@@ -74,9 +74,15 @@ export default function AdminUsersPage() {
   }
 
   async function setQuota(u: AdminUser) {
-    const v = prompt(`${u.email} 当前余额 ¥${YUAN(u.quota)}，输入新余额（micro）`);
-    if (!v) return;
-    await adminApi.updateUserQuota(u.id, Number(v));
+    const current = (u.quota / 1_000_000).toFixed(4);
+    const v = prompt(`${u.email} 当前余额 ¥${current}，输入新余额（元）`, current);
+    if (v === null) return;
+    const yuan = Number(v);
+    if (!Number.isFinite(yuan) || yuan < 0) {
+      alert('请输入 >= 0 的数字（元）');
+      return;
+    }
+    await adminApi.updateUserQuota(u.id, Math.round(yuan * 1_000_000));
     load();
   }
 

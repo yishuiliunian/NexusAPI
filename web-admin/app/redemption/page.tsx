@@ -214,7 +214,7 @@ export default function RedemptionPage() {
                     className="bg-slate-900 px-2 py-2 text-xs text-slate-300 placeholder-slate-500 outline-none rounded-md"
                   />
                 </div>
-                <p className="mt-1 text-[11px] text-slate-500">单位元，存储为 micro</p>
+                <p className="mt-1 text-[11px] text-slate-500">单位：元</p>
               </DarkField>
 
               <DarkField label="有效期（可选）">
