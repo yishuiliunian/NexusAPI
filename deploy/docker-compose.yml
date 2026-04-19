@@ -2,25 +2,23 @@
 #
 # 架构（5 个 service）：
 #   postgres   数据持久化
-#   server     Go backend（启动时 AutoMigrate 自动建表）
+#   server     Go backend（启动时 AutoMigrate）
 #   web-user   Next.js 用户端
 #   web-admin  Next.js 管理台
-#   traefik    反向代理（file provider，不依赖 docker.sock / API 协商）
+#   traefik    反向代理（file provider）
 #
-# 路由来源：traefik/dynamic/routes.yml（静态写死，file provider watch 热加载）
-#   - 好处：Traefik 无需连 docker socket，Docker 版本可自由升降
-#   - 原因：Traefik 所有版本的 docker provider 还在用硬编码 API 1.24 做协商，
-#          Docker 29+ 废弃 <1.40 API 后 docker provider 直接不可用
+# 镜像：GitHub Actions 自动构建推送到 ghcr.io（见 .github/workflows/publish.yml）
+#   ghcr.io/yishuiliunian/nexusapi-server:latest
+#   ghcr.io/yishuiliunian/nexusapi-web-user:latest
+#   ghcr.io/yishuiliunian/nexusapi-web-admin:latest
 #
-# 路由：
-#   :80   → Cloudflare 橙云回源入口
-#           /api/*, /v1/* 等 → server    其他 → web-user
-#   :3443 → admin 专用入口（IPAllowList 100.64.0.0/10 仅放行 TS 网段）
-#           /api/*, /v1/* 等 → server    其他 → web-admin
+# 远端部署：
+#   1. cp .env.example .env && 修改
+#   2. docker compose pull
+#   3. docker compose up -d
 #
-# 使用：
-#   1. cp .env.example .env && 修改 POSTGRES_PASSWORD 和 CRYPTO_SECRET
-#   2. docker compose up -d --build
+# 本地开发构建（非必需）：
+#   docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.dev.yml build
 
 name: nexusapi
 
@@ -41,10 +39,7 @@ services:
       retries: 10
 
   server:
-    image: nexusapi/server:${NEXUSAPI_IMAGE_TAG:-latest}
-    build:
-      context: ..
-      dockerfile: backend/Dockerfile
+    image: ghcr.io/yishuiliunian/nexusapi-server:${NEXUSAPI_IMAGE_TAG:-latest}
     restart: unless-stopped
     depends_on:
       postgres:
@@ -63,10 +58,7 @@ services:
       NEXUSAPI_BILLING_AUTO_SYNC_ON_STARTUP: ${NEXUSAPI_BILLING_AUTO_SYNC_ON_STARTUP:-true}
 
   web-user:
-    image: nexusapi/web-user:${NEXUSAPI_IMAGE_TAG:-latest}
-    build:
-      context: ..
-      dockerfile: web-user/Dockerfile
+    image: ghcr.io/yishuiliunian/nexusapi-web-user:${NEXUSAPI_IMAGE_TAG:-latest}
     restart: unless-stopped
     depends_on:
       - server
@@ -76,10 +68,7 @@ services:
       HOSTNAME: 0.0.0.0
 
   web-admin:
-    image: nexusapi/web-admin:${NEXUSAPI_IMAGE_TAG:-latest}
-    build:
-      context: ..
-      dockerfile: web-admin/Dockerfile
+    image: ghcr.io/yishuiliunian/nexusapi-web-admin:${NEXUSAPI_IMAGE_TAG:-latest}
     restart: unless-stopped
     depends_on:
       - server

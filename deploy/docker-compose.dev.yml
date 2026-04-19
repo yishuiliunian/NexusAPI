@@ -1,0 +1,22 @@
+# docker-compose.dev.yml —— 本地开发 override。
+#
+# 用法：
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml build
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+#
+# 作用：把 server / web-user / web-admin 的 image 来源从 ghcr.io pull 改为本地 build。
+# 生产部署只用 docker-compose.yml，自动从 ghcr.io pull。
+
+services:
+  server:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+  web-user:
+    build:
+      context: ..
+      dockerfile: web-user/Dockerfile
+  web-admin:
+    build:
+      context: ..
+      dockerfile: web-admin/Dockerfile
