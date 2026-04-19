@@ -67,11 +67,7 @@ services:
       NEXUSAPI_BILLING_USD_TO_CNY: ${NEXUSAPI_BILLING_USD_TO_CNY:-7.2}
       NEXUSAPI_BILLING_STRICT_PRICING: ${NEXUSAPI_BILLING_STRICT_PRICING:-true}
       NEXUSAPI_BILLING_AUTO_SYNC_ON_STARTUP: ${NEXUSAPI_BILLING_AUTO_SYNC_ON_STARTUP:-true}
-    healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/healthz"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
+    # distroless 镜像无 wget/curl；healthcheck 由 Traefik 做更合理，这里不配
     labels:
       - traefik.enable=true
       - traefik.http.services.server.loadbalancer.server.port=8080
@@ -133,6 +129,10 @@ services:
   traefik:
     image: traefik:v3.2
     restart: unless-stopped
+    environment:
+      # Traefik v3.2 默认用老 API 1.24 与 Docker daemon 协商，新版 daemon 拒绝。
+      # 固定到 1.43（Docker 20.10+ 都支持）。
+      DOCKER_API_VERSION: "1.43"
     command:
       - --configfile=/etc/traefik/traefik.yml
     ports:
