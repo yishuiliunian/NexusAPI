@@ -96,16 +96,30 @@ func mergeClaudeUsage(dst *proxy.Usage, u *claudeUsage) {
 	if u.CacheReadInputTokens > 0 {
 		dst.CacheReadTokens = u.CacheReadInputTokens
 	}
-	if u.CacheCreationInputTokens > 0 {
-		dst.CacheWriteTokens = u.CacheCreationInputTokens
-	}
+	// Cache creation：细分字段优先（5m + 1h 分别计数），总和字段 fallback。
+	//
+	// Anthropic 规范：cache_creation_input_tokens = ephemeral_5m + ephemeral_1h。
+	// 但某些上游（CCProxy 等中转层）返回时三者可能都相等，若盲目相加会**双算**，
+	// 5m 和 1h 的 tokens 加起来 > total 就说明异常，保守按 total 全算 5m（较便宜）。
 	if u.CacheCreation != nil {
-		if u.CacheCreation.Ephemeral5mInputTokens > 0 {
-			dst.CacheWriteTokens = u.CacheCreation.Ephemeral5mInputTokens
+		e5m := u.CacheCreation.Ephemeral5mInputTokens
+		e1h := u.CacheCreation.Ephemeral1hInputTokens
+		total := u.CacheCreationInputTokens
+		if total > 0 && e5m+e1h > total {
+			// 上游细分字段异常（5m+1h > total）→ 信任 total，保守按 5m 计费
+			dst.CacheWriteTokens = total
+			dst.CacheWrite1hTokens = 0
+		} else {
+			dst.CacheWriteTokens = e5m
+			dst.CacheWrite1hTokens = e1h
+			if total > 0 && e5m == 0 && e1h == 0 {
+				// 有总和但细分都是 0 → 按 5m 计费（保守）
+				dst.CacheWriteTokens = total
+			}
 		}
-		if u.CacheCreation.Ephemeral1hInputTokens > 0 {
-			dst.CacheWrite1hTokens = u.CacheCreation.Ephemeral1hInputTokens
-		}
+	} else if u.CacheCreationInputTokens > 0 {
+		// 没细分对象，按 5m 计费（保守）
+		dst.CacheWriteTokens = u.CacheCreationInputTokens
 	}
 }
 

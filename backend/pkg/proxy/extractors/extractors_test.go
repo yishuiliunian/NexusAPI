@@ -124,6 +124,45 @@ data: {"type":"message_delta","usage":{"output_tokens":3}}
 	}
 }
 
+// 回归 #169：上游异常返回 cache_creation_input_tokens = ephemeral_5m = ephemeral_1h = total
+// （每次都是总和），如果盲目采信会导致双算（5m × 1.25 + 1h × 2.0 ≈ 3.25 倍 input 价）。
+// 修复后：检测到 5m+1h > total 视为异常，保守按 total 全算 5m。
+func TestClaude_CacheCreation_DuplicatedFields_NoDoubleCount(t *testing.T) {
+	// 上游返回：total=100, 5m=100, 1h=100（三字段相同）——异常情况
+	body := []byte(`{"usage":{"input_tokens":6,"output_tokens":8,"cache_creation_input_tokens":100,"cache_creation":{"ephemeral_5m_input_tokens":100,"ephemeral_1h_input_tokens":100}}}`)
+	u := Claude(body, false)
+	if u == nil {
+		t.Fatal("expected usage")
+	}
+	if u.CacheWriteTokens != 100 {
+		t.Errorf("5m cache 应保守按 total=100 算，got %d", u.CacheWriteTokens)
+	}
+	if u.CacheWrite1hTokens != 0 {
+		t.Errorf("1h cache 应归零避免双算，got %d", u.CacheWrite1hTokens)
+	}
+}
+
+// 正常情况：细分字段一致性 OK（5m + 1h = total），应按细分分别计费。
+func TestClaude_CacheCreation_NormalSplit(t *testing.T) {
+	body := []byte(`{"usage":{"input_tokens":0,"output_tokens":0,"cache_creation_input_tokens":100,"cache_creation":{"ephemeral_5m_input_tokens":40,"ephemeral_1h_input_tokens":60}}}`)
+	u := Claude(body, false)
+	if u.CacheWriteTokens != 40 || u.CacheWrite1hTokens != 60 {
+		t.Errorf("5m=%d 1h=%d，want 40/60", u.CacheWriteTokens, u.CacheWrite1hTokens)
+	}
+}
+
+// 旧 API：没返 cache_creation 细分对象，只有总和 → 默认按 5m 计费。
+func TestClaude_CacheCreation_TotalOnly(t *testing.T) {
+	body := []byte(`{"usage":{"input_tokens":0,"output_tokens":0,"cache_creation_input_tokens":200}}`)
+	u := Claude(body, false)
+	if u.CacheWriteTokens != 200 {
+		t.Errorf("5m=%d want 200", u.CacheWriteTokens)
+	}
+	if u.CacheWrite1hTokens != 0 {
+		t.Errorf("1h=%d want 0", u.CacheWrite1hTokens)
+	}
+}
+
 // ---------- Gemini ----------
 
 func TestGemini_JSON(t *testing.T) {
