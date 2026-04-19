@@ -39,6 +39,7 @@ COPY web-user ./web-user
 
 # Next telemetry 关掉
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV NEXT_OUTPUT_STANDALONE=1
 
 RUN cd web-user && pnpm run build
 

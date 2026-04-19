@@ -54,6 +54,13 @@ export const adminApi = {
 
   listUsers: (page = 1, size = 50) =>
     api.get<Paged<AdminUser>>(`/api/admin/users?page=${page}&size=${size}`),
+  createUser: (data: {
+    email: string;
+    password: string;
+    role?: 'user' | 'admin';
+    quota?: number;
+    group_id?: number;
+  }) => api.post<AdminUser>('/api/admin/users', data),
   updateUserQuota: (id: number, quota: number) =>
     api.put(`/api/admin/users/${id}/quota`, { quota }),
   updateUserStatus: (id: number, status: string) =>

@@ -28,5 +28,6 @@ go_library(
         "//backend/pkg/httperr",
         "@com_github_gin_gonic_gin//:gin",
         "@io_gorm_gorm//:gorm",
+        "@org_golang_x_crypto//bcrypt",
     ],
 )

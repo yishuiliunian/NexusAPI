@@ -31,6 +31,7 @@ COPY web-shared ./web-shared
 COPY web-admin ./web-admin
 
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV NEXT_OUTPUT_STANDALONE=1
 
 RUN cd web-admin && pnpm run build
 

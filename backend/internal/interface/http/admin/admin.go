@@ -7,8 +7,10 @@ import (
 	"context"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 
 	"github.com/yishuiliunian/nexusapi/backend/internal/app/pricing"
@@ -20,6 +22,7 @@ import (
 	"github.com/yishuiliunian/nexusapi/backend/internal/domain/relay"
 	"github.com/yishuiliunian/nexusapi/backend/internal/domain/task"
 	"github.com/yishuiliunian/nexusapi/backend/internal/domain/user"
+	derrors "github.com/yishuiliunian/nexusapi/backend/pkg/errors"
 	"github.com/yishuiliunian/nexusapi/backend/pkg/httperr"
 )
 
@@ -73,6 +76,7 @@ func (h *Handler) Register(g *gin.RouterGroup) {
 	g.GET("/providers", h.providers)
 
 	g.GET("/users", h.listUsers)
+	g.POST("/users", h.createUser)
 	g.PUT("/users/:id/quota", h.updateUserQuota)
 	g.PUT("/users/:id/status", h.updateUserStatus)
 	g.PUT("/users/:id/rpm-limit", h.updateUserRPMLimit)
@@ -126,6 +130,68 @@ func (h *Handler) providers(c *gin.Context) {
 }
 
 // ---------- users ----------
+
+type createUserReq struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+	Role     string `json:"role"`     // user | admin；默认 user
+	Quota    int64  `json:"quota"`    // 初始余额（micro）；0 表示 0 元
+	GroupID  uint64 `json:"group_id"` // 可选分组
+}
+
+// createUser 管理员直接创建用户（区别于普通注册：可指定 role/quota/group，
+// 不需要邮箱验证）。
+func (h *Handler) createUser(c *gin.Context) {
+	var req createUserReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		httperr.BadRequest(c, err.Error())
+		return
+	}
+	email := strings.ToLower(strings.TrimSpace(req.Email))
+	if email == "" || !strings.Contains(email, "@") {
+		httperr.BadRequest(c, "邮箱格式无效")
+		return
+	}
+	if len(req.Password) < 8 {
+		httperr.BadRequest(c, "密码至少 8 位")
+		return
+	}
+	role := user.Role(req.Role)
+	if role != user.RoleAdmin {
+		role = user.RoleUser
+	}
+
+	ctx := c.Request.Context()
+	// 去重
+	if existing, err := h.Users.GetByEmail(ctx, email); err == nil && existing != nil {
+		httperr.AbortCode(c, http.StatusConflict, derrors.CodeAlreadyExists, "邮箱已注册")
+		return
+	} else if err != nil && !derrors.Is(err, derrors.CodeNotFound) {
+		httperr.Abort(c, err)
+		return
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		httperr.AbortCode(c, http.StatusInternalServerError, derrors.CodeInternal, "加密密码失败")
+		return
+	}
+
+	u := &user.User{
+		Email:         email,
+		EmailVerified: true, // admin 创建默认已验证
+		PasswordHash:  string(hash),
+		Role:          role,
+		GroupID:       req.GroupID,
+		Quota:         req.Quota,
+		Status:        user.StatusActive,
+	}
+	if err := h.Users.Create(ctx, u); err != nil {
+		httperr.Abort(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, u)
+}
 
 func (h *Handler) listUsers(c *gin.Context) {
 	offset, limit := parsePage(c)

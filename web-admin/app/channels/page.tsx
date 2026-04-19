@@ -172,10 +172,10 @@ export default function ChannelsPage() {
               </DarkLabel>
               <DarkLabel label="Provider">
                 <select
+                  data-testid="channel-provider"
                   className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
                   value={form.provider}
                   onChange={(e) => setForm({ ...form, provider: e.target.value })}
-                  disabled={isEdit}
                 >
                   {providers.map((p) => (
                     <option key={p} value={p}>
