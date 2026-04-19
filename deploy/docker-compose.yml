@@ -127,12 +127,8 @@ services:
       - traefik.http.routers.web-admin.service=web-admin
 
   traefik:
-    image: traefik:v3.2
+    image: traefik:v3.5
     restart: unless-stopped
-    environment:
-      # Traefik v3.2 默认用老 API 1.24 与 Docker daemon 协商，新版 daemon 拒绝。
-      # 固定到 1.43（Docker 20.10+ 都支持）。
-      DOCKER_API_VERSION: "1.43"
     command:
       - --configfile=/etc/traefik/traefik.yml
     ports:
