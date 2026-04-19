@@ -1,0 +1,54 @@
+# Traefik 静态路由配置（file provider）。
+#
+# 路由策略（compose 网络内 service 名即 DNS）：
+#   web (entryPoint :80, Cloudflare 回源)
+#     - API 路径前缀（/api,/v1,/mj,/suno,/video,/realtime,/healthz 等） → server
+#     - 其他 → web-user（兜底，加安全头 + gzip）
+#   admin (entryPoint :3443, 限 TS 网段)
+#     - API 路径前缀 → server（仅 TS）
+#     - 其他 → web-admin（仅 TS）
+
+http:
+  routers:
+    # ---------- :80 公网入口 ----------
+    server-web:
+      entryPoints: [web]
+      rule: "PathPrefix(`/api`) || PathPrefix(`/v1`) || PathPrefix(`/mj`) || PathPrefix(`/suno`) || PathPrefix(`/video`) || PathPrefix(`/realtime`) || Path(`/healthz`) || Path(`/readyz`) || Path(`/metrics`)"
+      priority: 100
+      service: server
+
+    web-user:
+      entryPoints: [web]
+      rule: "PathPrefix(`/`)"
+      priority: 1
+      service: web-user
+      middlewares: [security-headers, compress-all]
+
+    # ---------- :3443 admin 入口（仅 TS） ----------
+    server-admin:
+      entryPoints: [admin]
+      rule: "PathPrefix(`/api`) || PathPrefix(`/v1`) || Path(`/healthz`)"
+      priority: 100
+      service: server
+      middlewares: [ts-only]
+
+    web-admin:
+      entryPoints: [admin]
+      rule: "PathPrefix(`/`)"
+      priority: 1
+      service: web-admin
+      middlewares: [ts-only, compress-all]
+
+  services:
+    server:
+      loadBalancer:
+        servers:
+          - url: "http://server:8080"
+    web-user:
+      loadBalancer:
+        servers:
+          - url: "http://web-user:3000"
+    web-admin:
+      loadBalancer:
+        servers:
+          - url: "http://web-admin:3001"

@@ -4,9 +4,10 @@
 #   web    :80    Cloudflare 回源入口（公网），明文 HTTP（TLS 由 CF 终结）
 #   admin  :3443  admin 专用入口，限 TS 网段
 #
-# 路由来源：
-#   - docker provider（labels on service）—— 主要方式，容器起停自动同步
-#   - file provider（/etc/traefik/dynamic）—— 放可复用 middleware
+# 路由来源：**纯 file provider**（/etc/traefik/dynamic）
+#   - 原因：Traefik 所有版本的 docker provider 还在用硬编码 API 1.24 与 daemon
+#     协商，Docker 29+ 废弃了 <1.40 API 后协商必失败。file provider 彻底绕开。
+#   - docker socket 不挂载，更安全。
 
 global:
   checkNewVersion: false
@@ -46,9 +47,6 @@ entryPoints:
     address: ":3443"
 
 providers:
-  docker:
-    exposedByDefault: false
-    network: nexusapi_default
   file:
     directory: /etc/traefik/dynamic
     watch: true

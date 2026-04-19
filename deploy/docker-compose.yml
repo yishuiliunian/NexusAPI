@@ -5,27 +5,22 @@
 #   server     Go backend（启动时 AutoMigrate 自动建表）
 #   web-user   Next.js 用户端
 #   web-admin  Next.js 管理台
-#   traefik    反向代理 + IPAllowList（admin 限 TS 网段）
+#   traefik    反向代理（file provider，不依赖 docker.sock / API 协商）
 #
-# 不再需要：
-#   - redis    单机部署 reservations/ratelimit 退化为内存
-#   - worker   Claude Code 代理场景不需要 MJ/Suno 轮询
-#   - migrate  server 启动时 GORM AutoMigrate 已处理
+# 路由来源：traefik/dynamic/routes.yml（静态写死，file provider watch 热加载）
+#   - 好处：Traefik 无需连 docker socket，Docker 版本可自由升降
+#   - 原因：Traefik 所有版本的 docker provider 还在用硬编码 API 1.24 做协商，
+#          Docker 29+ 废弃 <1.40 API 后 docker provider 直接不可用
 #
 # 路由：
 #   :80   → Cloudflare 橙云回源入口
-#           /api/*, /v1/* → server    其他 → web-user
-#   :3443 → admin 专用入口（Traefik IPAllowList 100.64.0.0/10）
-#           /api/*, /v1/* → server    其他 → web-admin
+#           /api/*, /v1/* 等 → server    其他 → web-user
+#   :3443 → admin 专用入口（IPAllowList 100.64.0.0/10 仅放行 TS 网段）
+#           /api/*, /v1/* 等 → server    其他 → web-admin
 #
 # 使用：
-#   1. cp .env.example .env && 修改
-#   2. 本地构建镜像 tarball：
-#      bazel run //backend/cmd/server:image_tarball
-#      bazel run //web-user:image_tarball
-#      bazel run //web-admin:image_tarball
-#      scp tar 到服务器后 docker load
-#   3. docker compose up -d
+#   1. cp .env.example .env && 修改 POSTGRES_PASSWORD 和 CRYPTO_SECRET
+#   2. docker compose up -d --build
 
 name: nexusapi
 
@@ -44,7 +39,6 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
-    # 不暴露端口：仅 compose 内部访问
 
   server:
     image: nexusapi/server:${NEXUSAPI_IMAGE_TAG:-latest}
@@ -67,21 +61,6 @@ services:
       NEXUSAPI_BILLING_USD_TO_CNY: ${NEXUSAPI_BILLING_USD_TO_CNY:-7.2}
       NEXUSAPI_BILLING_STRICT_PRICING: ${NEXUSAPI_BILLING_STRICT_PRICING:-true}
       NEXUSAPI_BILLING_AUTO_SYNC_ON_STARTUP: ${NEXUSAPI_BILLING_AUTO_SYNC_ON_STARTUP:-true}
-    # distroless 镜像无 wget/curl；healthcheck 由 Traefik 做更合理，这里不配
-    labels:
-      - traefik.enable=true
-      - traefik.http.services.server.loadbalancer.server.port=8080
-      # 公网入口：API 路径优先匹配（优先级高于前端兜底）
-      - traefik.http.routers.server-web.entrypoints=web
-      - traefik.http.routers.server-web.rule=PathPrefix(`/api`) || PathPrefix(`/v1`) || PathPrefix(`/mj`) || PathPrefix(`/suno`) || PathPrefix(`/video`) || PathPrefix(`/realtime`) || Path(`/healthz`) || Path(`/readyz`) || Path(`/metrics`)
-      - traefik.http.routers.server-web.priority=100
-      - traefik.http.routers.server-web.service=server
-      # admin 入口：admin 前端也需调 /api/admin/*；且限 TS
-      - traefik.http.routers.server-admin.entrypoints=admin
-      - traefik.http.routers.server-admin.rule=PathPrefix(`/api`) || PathPrefix(`/v1`) || Path(`/healthz`)
-      - traefik.http.routers.server-admin.priority=100
-      - traefik.http.routers.server-admin.middlewares=ts-only@file
-      - traefik.http.routers.server-admin.service=server
 
   web-user:
     image: nexusapi/web-user:${NEXUSAPI_IMAGE_TAG:-latest}
@@ -95,15 +74,6 @@ services:
       NEXUSAPI_BACKEND_URL: http://server:8080
       PORT: 3000
       HOSTNAME: 0.0.0.0
-    labels:
-      - traefik.enable=true
-      - traefik.http.services.web-user.loadbalancer.server.port=3000
-      - traefik.http.routers.web-user.entrypoints=web
-      # 兜底：API 路径之外所有请求
-      - traefik.http.routers.web-user.rule=PathPrefix(`/`)
-      - traefik.http.routers.web-user.priority=1
-      - traefik.http.routers.web-user.middlewares=security-headers@file,compress-all@file
-      - traefik.http.routers.web-user.service=web-user
 
   web-admin:
     image: nexusapi/web-admin:${NEXUSAPI_IMAGE_TAG:-latest}
@@ -117,31 +87,18 @@ services:
       NEXUSAPI_BACKEND_URL: http://server:8080
       PORT: 3001
       HOSTNAME: 0.0.0.0
-    labels:
-      - traefik.enable=true
-      - traefik.http.services.web-admin.loadbalancer.server.port=3001
-      - traefik.http.routers.web-admin.entrypoints=admin
-      - traefik.http.routers.web-admin.rule=PathPrefix(`/`)
-      - traefik.http.routers.web-admin.priority=1
-      - traefik.http.routers.web-admin.middlewares=ts-only@file,compress-all@file
-      - traefik.http.routers.web-admin.service=web-admin
 
   traefik:
-    image: traefik:v3.5
+    image: traefik:v3.6
     restart: unless-stopped
     command:
       - --configfile=/etc/traefik/traefik.yml
     ports:
-      # 公网入口（Cloudflare 橙云回源）
       - "80:80"
-      # admin 专用入口：直接 IP 访问，只放行 TS 网段
       - "3443:3443"
-      # Traefik dashboard（可选，默认关闭）
-      # - "8082:8082"
     volumes:
       - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
       - ./traefik/dynamic:/etc/traefik/dynamic:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
     depends_on:
       - server
       - web-user
