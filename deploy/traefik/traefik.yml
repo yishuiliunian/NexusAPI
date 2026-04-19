@@ -4,9 +4,9 @@
 #   web    :80    Cloudflare 回源入口（公网），明文 HTTP（TLS 由 CF 终结）
 #   admin  :3443  admin 专用入口，限 TS 网段
 #
-# 路由策略通过 docker-compose 的 labels + file provider 混合注入：
-#   - 动态 router/service：labels（贴在 server/web-user/web-admin 容器上）
-#   - 可复用 middleware：file（./dynamic/middlewares.yml）
+# 路由来源：
+#   - docker provider（labels on service）—— 主要方式，容器起停自动同步
+#   - file provider（/etc/traefik/dynamic）—— 放可复用 middleware
 
 global:
   checkNewVersion: false
@@ -22,14 +22,11 @@ accessLog:
       - "400-499"
       - "500-599"
 
-# 入口
 entryPoints:
   web:
     address: ":80"
-    # Cloudflare 回源：相信 CF 头，拿真实 client IP
     forwardedHeaders:
       trustedIPs:
-        # Cloudflare IPv4 段（https://www.cloudflare.com/ips-v4/）
         - 173.245.48.0/20
         - 103.21.244.0/22
         - 103.22.200.0/22
@@ -48,7 +45,6 @@ entryPoints:
   admin:
     address: ":3443"
 
-# Provider
 providers:
   docker:
     exposedByDefault: false
@@ -56,8 +52,3 @@ providers:
   file:
     directory: /etc/traefik/dynamic
     watch: true
-
-# API / dashboard（默认关闭；开启请取消注释并放行端口）
-# api:
-#   dashboard: true
-#   insecure: true
