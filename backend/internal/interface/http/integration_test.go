@@ -585,3 +585,102 @@ func TestStripeWebhook_TopsUpUser(t *testing.T) {
 		t.Errorf("重放 webhook 不应重复 topup, got %d", u3.Quota)
 	}
 }
+
+// TestStats_IncludesCacheTokens 端到端验证 GET /api/user/stats 的 by_day 含 cache 字段聚合：
+//   1. 注册 + 登录用户
+//   2. 直接插 2 条同日 UsageRow（cache 三档 + reasoning 都非零）
+//   3. GET /api/user/stats?days=7
+//   4. 验证 by_day[0] 中 prompt/completion/cache/cache_write/cache_write_1h/reasoning 全部正确聚合
+func TestStats_IncludesCacheTokens(t *testing.T) {
+	env := setupEnv(t)
+
+	// 1. 注册 + 登录
+	resp, body := env.do("POST", "/api/auth/register", map[string]string{
+		"email": "stats@example.com", "password": "password123",
+	})
+	if resp.StatusCode != 200 {
+		t.Fatalf("register status=%d body=%s", resp.StatusCode, body)
+	}
+	var reg struct {
+		ID uint64 `json:"id"`
+	}
+	_ = json.Unmarshal(body, &reg)
+
+	resp, body = env.do("POST", "/api/auth/login", map[string]string{
+		"email": "stats@example.com", "password": "password123",
+	})
+	if resp.StatusCode != 200 {
+		t.Fatalf("login status=%d body=%s", resp.StatusCode, body)
+	}
+
+	// 2. 直接写 UsageRow
+	now := time.Now()
+	rows := []*db.UsageRow{
+		{
+			UserID: reg.ID, Model: "claude-opus-4-7", Capability: "chat",
+			PromptTokens: 1, CompletionTokens: 100,
+			CacheTokens: 50_000, CacheWriteTokens: 200, CacheWrite1hTokens: 500,
+			ReasoningTokens: 30, Cost: 1_000,
+			Status: "success", CreatedAt: now,
+		},
+		{
+			UserID: reg.ID, Model: "claude-opus-4-7", Capability: "chat",
+			PromptTokens: 5, CompletionTokens: 50,
+			CacheTokens: 30_000, CacheWriteTokens: 100, CacheWrite1hTokens: 250,
+			ReasoningTokens: 20, Cost: 500,
+			Status: "success", CreatedAt: now,
+		},
+	}
+	for _, r := range rows {
+		if err := env.db.Create(r).Error; err != nil {
+			t.Fatalf("seed UsageRow: %v", err)
+		}
+	}
+
+	// 3. GET /api/user/stats?days=7
+	resp, body = env.do("GET", "/api/user/stats?days=7", nil)
+	if resp.StatusCode != 200 {
+		t.Fatalf("stats status=%d body=%s", resp.StatusCode, body)
+	}
+
+	// 4. 验证 by_day[0] 字段
+	var stats struct {
+		ByDay []struct {
+			Date               string `json:"date"`
+			Requests           int64  `json:"requests"`
+			PromptTokens       int64  `json:"prompt_tokens"`
+			CompletionTokens   int64  `json:"completion_tokens"`
+			CacheTokens        int64  `json:"cache_tokens"`
+			CacheWriteTokens   int64  `json:"cache_write_tokens"`
+			CacheWrite1hTokens int64  `json:"cache_write_1h_tokens"`
+			ReasoningTokens    int64  `json:"reasoning_tokens"`
+			Cost               int64  `json:"cost"`
+		} `json:"by_day"`
+	}
+	if err := json.Unmarshal(body, &stats); err != nil {
+		t.Fatalf("unmarshal stats: %v body=%s", err, body)
+	}
+	if len(stats.ByDay) != 1 {
+		t.Fatalf("by_day want 1 group, got %d: %s", len(stats.ByDay), body)
+	}
+	d := stats.ByDay[0]
+	checks := []struct {
+		name string
+		got  int64
+		want int64
+	}{
+		{"requests", d.Requests, 2},
+		{"prompt_tokens", d.PromptTokens, 6},                // 1+5
+		{"completion_tokens", d.CompletionTokens, 150},      // 100+50
+		{"cache_tokens", d.CacheTokens, 80_000},             // 50000+30000
+		{"cache_write_tokens", d.CacheWriteTokens, 300},     // 200+100
+		{"cache_write_1h_tokens", d.CacheWrite1hTokens, 750}, // 500+250
+		{"reasoning_tokens", d.ReasoningTokens, 50},         // 30+20
+		{"cost", d.Cost, 1_500},                             // 1000+500
+	}
+	for _, c := range checks {
+		if c.got != c.want {
+			t.Errorf("by_day.%s = %d, want %d", c.name, c.got, c.want)
+		}
+	}
+}

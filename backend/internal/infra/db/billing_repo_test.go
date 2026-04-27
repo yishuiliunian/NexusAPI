@@ -113,6 +113,110 @@ func TestUsageRepo_ListByUser(t *testing.T) {
 	}
 }
 
+// TestUsageRepo_AggByDay 验证按天聚合返回完整 token 字段：
+// prompt / completion / cache_read / cache_write_5m / cache_write_1h / reasoning + cost。
+// 同时校验 userID 隔离与时间过滤。
+func TestUsageRepo_AggByDay(t *testing.T) {
+	d := newTestDB(t)
+	r := NewUsageRepo(d)
+	ctx := context.Background()
+
+	now := time.Now()
+	// user 1：今天 2 条同日数据，应当被聚合
+	_ = d.Create(&UsageRow{
+		UserID: 1, Model: "claude-opus-4-7", Capability: "chat",
+		PromptTokens: 10, CompletionTokens: 100,
+		CacheTokens: 50_000, CacheWriteTokens: 200, CacheWrite1hTokens: 500,
+		ReasoningTokens: 30, Cost: 1_000,
+		Status: "success", CreatedAt: now,
+	}).Error
+	_ = d.Create(&UsageRow{
+		UserID: 1, Model: "claude-opus-4-7", Capability: "chat",
+		PromptTokens: 5, CompletionTokens: 50,
+		CacheTokens: 30_000, CacheWriteTokens: 100, CacheWrite1hTokens: 250,
+		ReasoningTokens: 20, Cost: 500,
+		Status: "success", CreatedAt: now,
+	}).Error
+	// user 2：同日 1 条，不应进入 user 1 的聚合
+	_ = d.Create(&UsageRow{
+		UserID: 2, Model: "claude-opus-4-7", Capability: "chat",
+		PromptTokens: 999, CompletionTokens: 999,
+		CacheTokens: 999, CacheWriteTokens: 999, CacheWrite1hTokens: 999,
+		ReasoningTokens: 999, Cost: 999,
+		Status: "success", CreatedAt: now,
+	}).Error
+	// user 1：早于 since 的 1 条，不应被聚合
+	_ = d.Create(&UsageRow{
+		UserID: 1, Model: "claude-opus-4-7", Capability: "chat",
+		PromptTokens: 7777, CompletionTokens: 7777,
+		CacheTokens: 7777, CacheWriteTokens: 7777, CacheWrite1hTokens: 7777,
+		ReasoningTokens: 7777, Cost: 7777,
+		Status: "success", CreatedAt: now.Add(-72 * time.Hour),
+	}).Error
+
+	since := now.Add(-24 * time.Hour)
+	out, err := r.AggByDay(ctx, 1, since)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(out) != 1 {
+		t.Fatalf("应得 1 个分组，got %d: %+v", len(out), out)
+	}
+	got := out[0]
+	if got.Requests != 2 {
+		t.Errorf("requests want 2, got %d", got.Requests)
+	}
+	if got.PromptTokens != 15 {
+		t.Errorf("prompt want 15 (10+5), got %d", got.PromptTokens)
+	}
+	if got.CompletionTokens != 150 {
+		t.Errorf("completion want 150 (100+50), got %d", got.CompletionTokens)
+	}
+	if got.CacheTokens != 80_000 {
+		t.Errorf("cache_read want 80000 (50000+30000), got %d", got.CacheTokens)
+	}
+	if got.CacheWriteTokens != 300 {
+		t.Errorf("cache_write_5m want 300 (200+100), got %d", got.CacheWriteTokens)
+	}
+	if got.CacheWrite1hTokens != 750 {
+		t.Errorf("cache_write_1h want 750 (500+250), got %d", got.CacheWrite1hTokens)
+	}
+	if got.ReasoningTokens != 50 {
+		t.Errorf("reasoning want 50 (30+20), got %d", got.ReasoningTokens)
+	}
+	if got.Cost != 1_500 {
+		t.Errorf("cost want 1500 (1000+500), got %d", got.Cost)
+	}
+}
+
+// TestUsageRepo_AggByDay_AllZeros 验证早期 row 没有 cache 字段时聚合返回 0 而非 NULL。
+func TestUsageRepo_AggByDay_AllZeros(t *testing.T) {
+	d := newTestDB(t)
+	r := NewUsageRepo(d)
+	ctx := context.Background()
+
+	now := time.Now()
+	// 模拟"老数据"：仅 prompt/completion，cache 字段未设置
+	_ = d.Create(&UsageRow{
+		UserID: 1, Model: "m", Capability: "chat",
+		PromptTokens: 10, CompletionTokens: 5, Cost: 100,
+		Status: "success", CreatedAt: now,
+	}).Error
+
+	out, err := r.AggByDay(ctx, 1, now.Add(-1*time.Hour))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(out) != 1 {
+		t.Fatalf("want 1 group, got %d", len(out))
+	}
+	g := out[0]
+	if g.CacheTokens != 0 || g.CacheWriteTokens != 0 || g.CacheWrite1hTokens != 0 || g.ReasoningTokens != 0 {
+		t.Errorf("零值缺失：cache_read=%d cache_w5m=%d cache_w1h=%d reasoning=%d",
+			g.CacheTokens, g.CacheWriteTokens, g.CacheWrite1hTokens, g.ReasoningTokens)
+	}
+}
+
 func TestUsageRepo_SumCostByUser(t *testing.T) {
 	d := newTestDB(t)
 	r := NewUsageRepo(d)
