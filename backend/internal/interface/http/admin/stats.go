@@ -5,7 +5,7 @@
 // 返回：
 //   {
 //     "summary":  {total_requests, total_cost, active_users, success_rate},
-//     "by_day":   [{date, requests, prompt_tokens, completion_tokens, cost}],
+//     "by_day":   [{date, requests, prompt_tokens, completion_tokens, cache_tokens, cache_write_tokens, cache_write_1h_tokens, reasoning_tokens, cost}],
 //     "by_model": [...],
 //     "by_capability": [...],
 //     "by_status":[...],

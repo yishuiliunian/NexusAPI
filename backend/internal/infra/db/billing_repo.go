@@ -248,17 +248,25 @@ func (r *UsageRepo) AggByDay(ctx context.Context, userID uint64, since time.Time
 			COUNT(*) AS requests,
 			COALESCE(SUM(prompt_tokens), 0) AS prompt_tokens,
 			COALESCE(SUM(completion_tokens), 0) AS completion_tokens,
+			COALESCE(SUM(cache_tokens), 0) AS cache_tokens,
+			COALESCE(SUM(cache_write_tokens), 0) AS cache_write_tokens,
+			COALESCE(SUM(cache_write1h_tokens), 0) AS cache_write1h_tokens,
+			COALESCE(SUM(reasoning_tokens), 0) AS reasoning_tokens,
 			COALESCE(SUM(cost), 0) AS cost`).
 		Group("day").
 		Order("day ASC")
 	tx = scopeUser(tx, userID)
 
 	type row struct {
-		Day              string
-		Requests         int64
-		PromptTokens     int64
-		CompletionTokens int64
-		Cost             int64
+		Day                string
+		Requests           int64
+		PromptTokens       int64
+		CompletionTokens   int64
+		CacheTokens        int64
+		CacheWriteTokens   int64
+		CacheWrite1hTokens int64
+		ReasoningTokens    int64
+		Cost               int64
 	}
 	var rows []row
 	if err := tx.Scan(&rows).Error; err != nil {
@@ -267,11 +275,15 @@ func (r *UsageRepo) AggByDay(ctx context.Context, userID uint64, since time.Time
 	out := make([]billing.DailyAgg, 0, len(rows))
 	for _, r := range rows {
 		out = append(out, billing.DailyAgg{
-			Date:             r.Day,
-			Requests:         r.Requests,
-			PromptTokens:     r.PromptTokens,
-			CompletionTokens: r.CompletionTokens,
-			Cost:             r.Cost,
+			Date:               r.Day,
+			Requests:           r.Requests,
+			PromptTokens:       r.PromptTokens,
+			CompletionTokens:   r.CompletionTokens,
+			CacheTokens:        r.CacheTokens,
+			CacheWriteTokens:   r.CacheWriteTokens,
+			CacheWrite1hTokens: r.CacheWrite1hTokens,
+			ReasoningTokens:    r.ReasoningTokens,
+			Cost:               r.Cost,
 		})
 	}
 	return out, nil

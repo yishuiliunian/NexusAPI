@@ -108,6 +108,10 @@ export interface Usage {
   capability: string;
   prompt_tokens: number;
   completion_tokens: number;
+  cache_tokens: number;
+  cache_write_tokens: number;
+  cache_write_1h_tokens: number;
+  reasoning_tokens: number;
   cost: number;
   latency_ms: number;
   status: string;
@@ -147,6 +151,10 @@ export interface DailyAgg {
   requests: number;
   prompt_tokens: number;
   completion_tokens: number;
+  cache_tokens: number;
+  cache_write_tokens: number;
+  cache_write_1h_tokens: number;
+  reasoning_tokens: number;
   cost: number;
 }
 

@@ -90,6 +90,28 @@ export default function OverviewPage() {
               </DarkSection>
             </div>
 
+            <DarkSection title="Token 消耗趋势" subtitle="每日 input / output / cache">
+              {(stats.by_day ?? []).length === 0 ? (
+                <Empty />
+              ) : (
+                <TrendChart
+                  data={(stats.by_day ?? []).map((d) => ({
+                    date: d.date.slice(5),
+                    prompt: d.prompt_tokens,
+                    completion: d.completion_tokens,
+                    cache_read: d.cache_tokens,
+                    cache_write: d.cache_write_tokens + d.cache_write_1h_tokens,
+                  }))}
+                  series={[
+                    { key: 'prompt', label: 'Input', color: '#3B82F6' },
+                    { key: 'completion', label: 'Output', color: '#10B981' },
+                    { key: 'cache_read', label: 'Cache Read', color: '#F59E0B' },
+                    { key: 'cache_write', label: 'Cache Write', color: '#EF4444' },
+                  ]}
+                />
+              )}
+            </DarkSection>
+
             <div className="grid gap-4 lg:grid-cols-2">
               <DarkSection title="Top 模型" subtitle="按收入（USD）">
                 {(stats.by_model ?? []).length === 0 ? (

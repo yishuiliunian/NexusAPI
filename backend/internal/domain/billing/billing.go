@@ -100,7 +100,7 @@ type UsageRepository interface {
 
 	// ---------- 聚合统计（供 Dashboard / Admin Overview 画图）----------
 
-	// AggByDay 按天分组，返回 (date, requests, prompt_tokens, completion_tokens, cost)。
+	// AggByDay 按天分组，返回 (date, requests, prompt/completion/cache/cache_write/cache_write_1h/reasoning tokens, cost)。
 	// userID = 0 表示全量（admin 用）。
 	AggByDay(ctx context.Context, userID uint64, since time.Time) ([]DailyAgg, error)
 	// AggByModel 按 model 分组。
@@ -117,11 +117,15 @@ type UsageRepository interface {
 
 // DailyAgg 单日聚合。Date 是 "2026-04-18" 形式。
 type DailyAgg struct {
-	Date             string `json:"date"`
-	Requests         int64  `json:"requests"`
-	PromptTokens    int64  `json:"prompt_tokens"`
-	CompletionTokens int64  `json:"completion_tokens"`
-	Cost             int64  `json:"cost"`
+	Date               string `json:"date"`
+	Requests           int64  `json:"requests"`
+	PromptTokens       int64  `json:"prompt_tokens"`
+	CompletionTokens   int64  `json:"completion_tokens"`
+	CacheTokens        int64  `json:"cache_tokens"`           // 缓存命中读取
+	CacheWriteTokens   int64  `json:"cache_write_tokens"`     // 缓存创建 5min
+	CacheWrite1hTokens int64  `json:"cache_write_1h_tokens"`  // 缓存创建 1h
+	ReasoningTokens    int64  `json:"reasoning_tokens"`       // 思考 token
+	Cost               int64  `json:"cost"`
 }
 
 // ModelAgg 按模型聚合。

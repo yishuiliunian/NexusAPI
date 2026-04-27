@@ -145,9 +145,11 @@ function TokensTrendCard({ stats }: { stats: Stats }) {
     date: d.date.slice(5),
     prompt: d.prompt_tokens,
     completion: d.completion_tokens,
+    cache_read: d.cache_tokens,
+    cache_write: d.cache_write_tokens + d.cache_write_1h_tokens,
   }));
   return (
-    <Section title="Tokens 消耗趋势" description="按日聚合 prompt + completion">
+    <Section title="Tokens 消耗趋势" description="按日聚合 input / output / cache">
       <div className="p-4">
         {data.length === 0 ? (
           <EmptyState title="暂无数据" description="在 API Keys 建密钥后，发起第一次调用试试" />
@@ -155,8 +157,10 @@ function TokensTrendCard({ stats }: { stats: Stats }) {
           <TrendChart
             data={data}
             series={[
-              { key: 'prompt', label: 'Prompt' },
-              { key: 'completion', label: 'Completion' },
+              { key: 'prompt', label: 'Input', color: '#3B82F6' },
+              { key: 'completion', label: 'Output', color: '#10B981' },
+              { key: 'cache_read', label: 'Cache Read', color: '#F59E0B' },
+              { key: 'cache_write', label: 'Cache Write', color: '#EF4444' },
             ]}
           />
         )}
@@ -257,14 +261,17 @@ function RecentCallsCard({ usages }: { usages: Usage[] }) {
       {usages.length === 0 ? (
         <EmptyState title="还没有调用记录" description="用 API Key 调 /v1/chat/completions 后将显示在这里" />
       ) : (
+        <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
             <tr>
               <th className="px-4 py-2.5 text-left font-medium">时间</th>
               <th className="px-4 py-2.5 text-left font-medium">模型</th>
               <th className="px-4 py-2.5 text-left font-medium">能力</th>
-              <th className="px-4 py-2.5 text-right font-medium">Prompt</th>
+              <th className="px-4 py-2.5 text-right font-medium">Input</th>
               <th className="px-4 py-2.5 text-right font-medium">Output</th>
+              <th className="px-4 py-2.5 text-right font-medium">Cache R</th>
+              <th className="px-4 py-2.5 text-right font-medium">Cache W</th>
               <th className="px-4 py-2.5 text-right font-medium">费用</th>
               <th className="px-4 py-2.5 text-left font-medium">状态</th>
             </tr>
@@ -281,6 +288,10 @@ function RecentCallsCard({ usages }: { usages: Usage[] }) {
                 </td>
                 <td className="px-4 py-2.5 text-right text-slate-700">{FMT(u.prompt_tokens)}</td>
                 <td className="px-4 py-2.5 text-right text-slate-700">{FMT(u.completion_tokens)}</td>
+                <td className="px-4 py-2.5 text-right text-slate-500">{FMT(u.cache_tokens)}</td>
+                <td className="px-4 py-2.5 text-right text-slate-500">
+                  {FMT(u.cache_write_tokens + u.cache_write_1h_tokens)}
+                </td>
                 <td className="px-4 py-2.5 text-right font-semibold text-slate-900">
                   ${USD(u.cost)}
                 </td>
@@ -293,6 +304,7 @@ function RecentCallsCard({ usages }: { usages: Usage[] }) {
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </Section>
   );
