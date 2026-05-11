@@ -64,7 +64,7 @@ func TestCandidates_FiltersDisabled(t *testing.T) {
 		{ID: 1, Provider: "p", Models: []string{"m"}, Status: domainchannel.StatusActive, Weight: 1},
 		{ID: 2, Provider: "p", Models: []string{"m"}, Status: domainchannel.StatusDisabled, Weight: 1},
 	}, "p")
-	got, err := sel.Candidates(context.Background(), "m", 0)
+	got, err := sel.Candidates(context.Background(), "m", 0, 0, 0)
 	if err != nil {
 		t.Fatalf("unexpected err: %v", err)
 	}
@@ -77,7 +77,7 @@ func TestCandidates_FiltersUnsupportedModel(t *testing.T) {
 	sel := newSel([]*domainchannel.Channel{
 		{ID: 1, Provider: "p", Models: []string{"other"}, Status: domainchannel.StatusActive},
 	}, "p")
-	if _, err := sel.Candidates(context.Background(), "m", 0); !derrors.Is(err, derrors.CodeNotFound) {
+	if _, err := sel.Candidates(context.Background(), "m", 0, 0, 0); !derrors.Is(err, derrors.CodeNotFound) {
 		t.Errorf("want not_found, got %v", err)
 	}
 }
@@ -87,7 +87,7 @@ func TestCandidates_FiltersGroup(t *testing.T) {
 		{ID: 1, Provider: "p", Models: []string{"m"}, GroupIDs: []uint64{2}, Status: domainchannel.StatusActive},
 		{ID: 2, Provider: "p", Models: []string{"m"}, GroupIDs: nil, Status: domainchannel.StatusActive},
 	}, "p")
-	got, _ := sel.Candidates(context.Background(), "m", 3)
+	got, _ := sel.Candidates(context.Background(), "m", 3, 0, 0)
 	if len(got) != 1 || got[0].ID != 2 {
 		t.Errorf("group filter failed, got %+v", got)
 	}
@@ -97,7 +97,7 @@ func TestCandidates_FiltersMissingAdaptor(t *testing.T) {
 	sel := newSel([]*domainchannel.Channel{
 		{ID: 1, Provider: "unknown", Models: []string{"m"}, Status: domainchannel.StatusActive},
 	}) // 没有注册任何 provider
-	if _, err := sel.Candidates(context.Background(), "m", 0); !derrors.Is(err, derrors.CodeNotFound) {
+	if _, err := sel.Candidates(context.Background(), "m", 0, 0, 0); !derrors.Is(err, derrors.CodeNotFound) {
 		t.Errorf("unregistered provider should filter out, want not_found, got %v", err)
 	}
 }
@@ -106,9 +106,70 @@ func TestCandidates_AllowsOpenGroup(t *testing.T) {
 	sel := newSel([]*domainchannel.Channel{
 		{ID: 9, Provider: "p", Models: []string{"m"}, GroupIDs: nil, Status: domainchannel.StatusActive},
 	}, "p")
-	got, err := sel.Candidates(context.Background(), "m", 42)
+	got, err := sel.Candidates(context.Background(), "m", 42, 0, 0)
 	if err != nil || len(got) != 1 {
 		t.Errorf("nil GroupIDs means any group; got %+v, err=%v", got, err)
+	}
+}
+
+func TestCandidates_FiltersUser_Whitelist(t *testing.T) {
+	sel := newSel([]*domainchannel.Channel{
+		{ID: 1, Provider: "p", Models: []string{"m"}, UserIDs: []uint64{100}, Status: domainchannel.StatusActive},
+		{ID: 2, Provider: "p", Models: []string{"m"}, UserIDs: []uint64{200}, Status: domainchannel.StatusActive},
+	}, "p")
+	got, err := sel.Candidates(context.Background(), "m", 0, 100, 0)
+	if err != nil || len(got) != 1 || got[0].ID != 1 {
+		t.Errorf("UserIDs whitelist failed; got %+v err=%v", got, err)
+	}
+}
+
+func TestCandidates_FiltersUser_EmptyMeansUnrestricted(t *testing.T) {
+	sel := newSel([]*domainchannel.Channel{
+		{ID: 9, Provider: "p", Models: []string{"m"}, UserIDs: nil, Status: domainchannel.StatusActive},
+	}, "p")
+	got, err := sel.Candidates(context.Background(), "m", 0, 12345, 0)
+	if err != nil || len(got) != 1 {
+		t.Errorf("nil UserIDs means any user; got %+v err=%v", got, err)
+	}
+}
+
+func TestCandidates_FiltersApiKey_Whitelist(t *testing.T) {
+	sel := newSel([]*domainchannel.Channel{
+		{ID: 1, Provider: "p", Models: []string{"m"}, ApiKeyIDs: []uint64{77}, Status: domainchannel.StatusActive},
+		{ID: 2, Provider: "p", Models: []string{"m"}, ApiKeyIDs: nil, Status: domainchannel.StatusActive},
+	}, "p")
+	// apiKey=88 → 仅 ID=2（不限制）通过
+	got, _ := sel.Candidates(context.Background(), "m", 0, 0, 88)
+	if len(got) != 1 || got[0].ID != 2 {
+		t.Errorf("ApiKeyIDs whitelist failed; got %+v", got)
+	}
+	// apiKey=77 → 两条都通过
+	got, _ = sel.Candidates(context.Background(), "m", 0, 0, 77)
+	if len(got) != 2 {
+		t.Errorf("ApiKeyIDs whitelist should accept matching key; got %+v", got)
+	}
+}
+
+func TestCandidates_ThreeLayerAndIntersection(t *testing.T) {
+	// 同一渠道同时设 Group=[3] 且 User=[100]。三层语义为 AND。
+	sel := newSel([]*domainchannel.Channel{
+		{ID: 1, Provider: "p", Models: []string{"m"},
+			GroupIDs: []uint64{3}, UserIDs: []uint64{100},
+			Status: domainchannel.StatusActive},
+	}, "p")
+
+	// 用户 100 但 group=4 → 被 Group 层过滤
+	if _, err := sel.Candidates(context.Background(), "m", 4, 100, 0); !derrors.Is(err, derrors.CodeNotFound) {
+		t.Errorf("group mismatch should be filtered out; got err=%v", err)
+	}
+	// group=3 但用户=200 → 被 User 层过滤
+	if _, err := sel.Candidates(context.Background(), "m", 3, 200, 0); !derrors.Is(err, derrors.CodeNotFound) {
+		t.Errorf("user mismatch should be filtered out; got err=%v", err)
+	}
+	// 三层都命中
+	got, err := sel.Candidates(context.Background(), "m", 3, 100, 0)
+	if err != nil || len(got) != 1 {
+		t.Errorf("three-layer AND should pass when all match; got %+v err=%v", got, err)
 	}
 }
 
@@ -257,7 +318,7 @@ func TestSelector_SkipsOpenBreaker(t *testing.T) {
 	sel.WithBreaker(b)
 	b.RecordFailure(context.Background(), 1)
 
-	got, err := sel.Candidates(context.Background(), "m", 0)
+	got, err := sel.Candidates(context.Background(), "m", 0, 0, 0)
 	if err != nil {
 		t.Fatalf("err=%v", err)
 	}

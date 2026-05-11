@@ -1,5 +1,8 @@
 // 配额耗尽 / 限流 / session 失效场景。
+import { fetch } from 'undici';
 import { expect, test } from '../../fixtures/auth';
+import { API_BASE } from '../../playwright.config';
+import { URLS } from '../../helpers/env';
 
 test.describe('Quota 耗尽', () => {
   test('quota=0 调 /v1 应 402', async ({ page, loginAsUser, createApiKey }) => {
@@ -33,7 +36,7 @@ test.describe('Session 失效', () => {
       {
         name: 'nexus_session',
         value: 'fake-session-does-not-exist',
-        url: 'http://127.0.0.1:13000',
+        url: URLS.user,
       },
     ]);
     const r = await page.request.get('/api/user/me');
@@ -55,8 +58,6 @@ test.describe('Ban user', () => {
     expect(ok.ok()).toBeTruthy();
 
     // admin ban
-    const { fetch } = await import('undici');
-    const { API_BASE } = await import('../../playwright.config');
     const loginResp = await fetch(`${API_BASE}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

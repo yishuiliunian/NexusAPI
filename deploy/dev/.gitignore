@@ -1,0 +1,5 @@
+# dev 环境运行时产物，全部 gitignore
+.env
+runtime/
+*.log
+*.pid

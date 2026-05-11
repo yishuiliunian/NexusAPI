@@ -106,6 +106,72 @@ func (r *ChannelRepo) syncGroups(tx *gorm.DB, channelID uint64, groupIDs []uint6
 	return nil
 }
 
+// loadUsers 从 channel_users 关联表读取指定渠道的用户白名单。
+func (r *ChannelRepo) loadUsers(ctx context.Context, channelID uint64) ([]uint64, error) {
+	var rows []ChannelUserRow
+	if err := r.db.WithContext(ctx).Where("channel_id = ?", channelID).Find(&rows).Error; err != nil {
+		return nil, derrors.Wrap(derrors.CodeInternal, "load channel users", err)
+	}
+	out := make([]uint64, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, row.UserID)
+	}
+	return out, nil
+}
+
+// syncUsers 同步 channel_users 关联记录（全量替换语义）。
+// 约定：在 Create/Update 的同一事务内调用。
+func (r *ChannelRepo) syncUsers(tx *gorm.DB, channelID uint64, userIDs []uint64) error {
+	if err := tx.Where("channel_id = ?", channelID).Delete(&ChannelUserRow{}).Error; err != nil {
+		return derrors.Wrap(derrors.CodeInternal, "clear channel users", err)
+	}
+	if len(userIDs) == 0 {
+		return nil
+	}
+	rows := make([]ChannelUserRow, 0, len(userIDs))
+	now := time.Now()
+	for _, uid := range userIDs {
+		rows = append(rows, ChannelUserRow{ChannelID: channelID, UserID: uid, CreatedAt: now})
+	}
+	if err := tx.Create(&rows).Error; err != nil {
+		return derrors.Wrap(derrors.CodeInternal, "insert channel users", err)
+	}
+	return nil
+}
+
+// loadApiKeys 从 channel_apikeys 关联表读取指定渠道的 ApiKey 白名单。
+func (r *ChannelRepo) loadApiKeys(ctx context.Context, channelID uint64) ([]uint64, error) {
+	var rows []ChannelApiKeyRow
+	if err := r.db.WithContext(ctx).Where("channel_id = ?", channelID).Find(&rows).Error; err != nil {
+		return nil, derrors.Wrap(derrors.CodeInternal, "load channel apikeys", err)
+	}
+	out := make([]uint64, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, row.ApiKeyID)
+	}
+	return out, nil
+}
+
+// syncApiKeys 同步 channel_apikeys 关联记录（全量替换语义）。
+// 约定：在 Create/Update 的同一事务内调用。
+func (r *ChannelRepo) syncApiKeys(tx *gorm.DB, channelID uint64, apiKeyIDs []uint64) error {
+	if err := tx.Where("channel_id = ?", channelID).Delete(&ChannelApiKeyRow{}).Error; err != nil {
+		return derrors.Wrap(derrors.CodeInternal, "clear channel apikeys", err)
+	}
+	if len(apiKeyIDs) == 0 {
+		return nil
+	}
+	rows := make([]ChannelApiKeyRow, 0, len(apiKeyIDs))
+	now := time.Now()
+	for _, kid := range apiKeyIDs {
+		rows = append(rows, ChannelApiKeyRow{ChannelID: channelID, ApiKeyID: kid, CreatedAt: now})
+	}
+	if err := tx.Create(&rows).Error; err != nil {
+		return derrors.Wrap(derrors.CodeInternal, "insert channel apikeys", err)
+	}
+	return nil
+}
+
 func (r *ChannelRepo) Create(ctx context.Context, c *channel.Channel) error {
 	row, err := r.toRow(c)
 	if err != nil {
@@ -115,7 +181,13 @@ func (r *ChannelRepo) Create(ctx context.Context, c *channel.Channel) error {
 		if err := tx.Create(row).Error; err != nil {
 			return derrors.Wrap(derrors.CodeInternal, "create channel", err)
 		}
-		return r.syncGroups(tx, row.ID, c.GroupIDs)
+		if err := r.syncGroups(tx, row.ID, c.GroupIDs); err != nil {
+			return err
+		}
+		if err := r.syncUsers(tx, row.ID, c.UserIDs); err != nil {
+			return err
+		}
+		return r.syncApiKeys(tx, row.ID, c.ApiKeyIDs)
 	})
 	if err != nil {
 		return err
@@ -139,8 +211,13 @@ func (r *ChannelRepo) GetByID(ctx context.Context, id uint64) (*channel.Channel,
 	if err != nil {
 		return nil, err
 	}
-	ch.GroupIDs, err = r.loadGroups(ctx, id)
-	if err != nil {
+	if ch.GroupIDs, err = r.loadGroups(ctx, id); err != nil {
+		return nil, err
+	}
+	if ch.UserIDs, err = r.loadUsers(ctx, id); err != nil {
+		return nil, err
+	}
+	if ch.ApiKeyIDs, err = r.loadApiKeys(ctx, id); err != nil {
 		return nil, err
 	}
 	return ch, nil
@@ -169,7 +246,8 @@ func (r *ChannelRepo) ListActive(ctx context.Context) ([]*channel.Channel, error
 	return out, err
 }
 
-// hydrate 对一批渠道批量补齐 GroupIDs。一次查询避免 N+1。
+// hydrate 对一批渠道批量补齐 GroupIDs / UserIDs / ApiKeyIDs。
+// 一次查询避免 N+1。
 func (r *ChannelRepo) hydrate(ctx context.Context, rows []ChannelRow, total int64) ([]*channel.Channel, int64, error) {
 	out := make([]*channel.Channel, 0, len(rows))
 	if len(rows) == 0 {
@@ -179,20 +257,45 @@ func (r *ChannelRepo) hydrate(ctx context.Context, rows []ChannelRow, total int6
 	for i := range rows {
 		ids = append(ids, rows[i].ID)
 	}
-	var links []ChannelGroupRow
-	if err := r.db.WithContext(ctx).Where("channel_id IN ?", ids).Find(&links).Error; err != nil {
+
+	// groups
+	var gLinks []ChannelGroupRow
+	if err := r.db.WithContext(ctx).Where("channel_id IN ?", ids).Find(&gLinks).Error; err != nil {
 		return nil, 0, derrors.Wrap(derrors.CodeInternal, "load channel groups", err)
 	}
 	groupsByChannel := map[uint64][]uint64{}
-	for _, l := range links {
+	for _, l := range gLinks {
 		groupsByChannel[l.ChannelID] = append(groupsByChannel[l.ChannelID], l.GroupID)
 	}
+
+	// users
+	var uLinks []ChannelUserRow
+	if err := r.db.WithContext(ctx).Where("channel_id IN ?", ids).Find(&uLinks).Error; err != nil {
+		return nil, 0, derrors.Wrap(derrors.CodeInternal, "load channel users", err)
+	}
+	usersByChannel := map[uint64][]uint64{}
+	for _, l := range uLinks {
+		usersByChannel[l.ChannelID] = append(usersByChannel[l.ChannelID], l.UserID)
+	}
+
+	// apikeys
+	var kLinks []ChannelApiKeyRow
+	if err := r.db.WithContext(ctx).Where("channel_id IN ?", ids).Find(&kLinks).Error; err != nil {
+		return nil, 0, derrors.Wrap(derrors.CodeInternal, "load channel apikeys", err)
+	}
+	apiKeysByChannel := map[uint64][]uint64{}
+	for _, l := range kLinks {
+		apiKeysByChannel[l.ChannelID] = append(apiKeysByChannel[l.ChannelID], l.ApiKeyID)
+	}
+
 	for i := range rows {
 		ch, err := r.fromRow(&rows[i])
 		if err != nil {
 			return nil, 0, err
 		}
 		ch.GroupIDs = groupsByChannel[ch.ID]
+		ch.UserIDs = usersByChannel[ch.ID]
+		ch.ApiKeyIDs = apiKeysByChannel[ch.ID]
 		out = append(out, ch)
 	}
 	return out, total, nil
@@ -207,7 +310,13 @@ func (r *ChannelRepo) Update(ctx context.Context, c *channel.Channel) error {
 		if err := tx.Save(row).Error; err != nil {
 			return derrors.Wrap(derrors.CodeInternal, "update channel", err)
 		}
-		return r.syncGroups(tx, c.ID, c.GroupIDs)
+		if err := r.syncGroups(tx, c.ID, c.GroupIDs); err != nil {
+			return err
+		}
+		if err := r.syncUsers(tx, c.ID, c.UserIDs); err != nil {
+			return err
+		}
+		return r.syncApiKeys(tx, c.ID, c.ApiKeyIDs)
 	})
 }
 
@@ -215,6 +324,12 @@ func (r *ChannelRepo) Delete(ctx context.Context, id uint64) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("channel_id = ?", id).Delete(&ChannelGroupRow{}).Error; err != nil {
 			return derrors.Wrap(derrors.CodeInternal, "delete channel groups", err)
+		}
+		if err := tx.Where("channel_id = ?", id).Delete(&ChannelUserRow{}).Error; err != nil {
+			return derrors.Wrap(derrors.CodeInternal, "delete channel users", err)
+		}
+		if err := tx.Where("channel_id = ?", id).Delete(&ChannelApiKeyRow{}).Error; err != nil {
+			return derrors.Wrap(derrors.CodeInternal, "delete channel apikeys", err)
 		}
 		if err := tx.Delete(&ChannelRow{}, id).Error; err != nil {
 			return derrors.Wrap(derrors.CodeInternal, "delete channel", err)

@@ -59,6 +59,8 @@ func allModels() []any {
 		&ApiKeyRow{},
 		&ChannelRow{},
 		&ChannelGroupRow{},
+		&ChannelUserRow{},
+		&ChannelApiKeyRow{},
 		&ModelPriceRow{},
 		&UsageRow{},
 		&LedgerRow{},

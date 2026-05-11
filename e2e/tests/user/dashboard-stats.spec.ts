@@ -39,8 +39,8 @@ test.describe('Dashboard 监控看板', () => {
     }
 
     await page.goto('/dashboard');
-    // 模型明细表包含 gpt-4o-mini
-    await expect(page.locator('table')).toContainText('gpt-4o-mini');
+    // dashboard 上有两张表（模型聚合 + 明细），任一含 gpt-4o-mini 即可
+    await expect(page.locator('table').first()).toContainText('gpt-4o-mini');
     // 图表区不再是"暂无数据"：至少有 svg（Recharts 渲染出的）
     const svgCount = await page.locator('svg').count();
     expect(svgCount).toBeGreaterThan(0);
@@ -51,11 +51,14 @@ test.describe('Dashboard 监控看板', () => {
 
   test('时间窗口切换触发新请求', async ({ page }) => {
     await page.goto('/dashboard');
+    // 等首屏 GET 完成
+    await page.waitForResponse((r) => r.url().includes('/api/user/stats')).catch(() => null);
+    // 切到 30D（TimeTabs 是 button 组）
     const resp = page.waitForResponse((r) => r.url().includes('/api/user/stats?days=30'));
-    await page.locator('select').first().selectOption('30');
+    await page.getByRole('button', { name: '30D' }).click();
     const r = await resp;
     expect(r.ok()).toBeTruthy();
-    await expect(page.getByText(/最近 30 天消耗/)).toBeVisible();
+    await expect(page.getByText(/最近 30 天消耗|30 天消耗/)).toBeVisible();
   });
 });
 

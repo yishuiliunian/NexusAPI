@@ -1,0 +1,32 @@
+# Dev environment 入口（Bazel target 形式）。
+#
+# 推荐用法：
+#   bazel run //deploy/dev:up              # 完整：infra + backend + 双前端
+#   bazel run //deploy/dev:backend_only    # CI / e2e：infra + backend
+#   bazel run //deploy/dev:clean           # 全部清理
+#
+# 兼容：仍可 `bash deploy/dev/dev.sh` 直接执行（这套 target 是叠加入口，不替代）。
+#
+# 实现细节：dev_runner.sh 把 cwd 切回 BUILD_WORKSPACE_DIRECTORY/deploy/dev 再 exec
+# dev.sh，让 dev.sh 的 SCRIPT_DIR 指向源码树（必要：要写 .env / docker context）。
+
+DEV_SCRIPTS = [
+    "dev.sh",
+] + glob(["lib/*.sh"])
+
+[
+    sh_binary(
+        name = name,
+        srcs = ["dev_runner.sh"],
+        args = args,
+        data = DEV_SCRIPTS + [
+            "docker-compose.yml",
+        ],
+        visibility = ["//visibility:public"],
+    )
+    for name, args in [
+        ("up", []),
+        ("backend_only", ["--backend-only"]),
+        ("clean", ["--clean"]),
+    ]
+]

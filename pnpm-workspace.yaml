@@ -2,4 +2,6 @@ packages:
   - "web-user"
   - "web-admin"
   - "web-shared"
-  - "e2e"
+# 注意：e2e 不是 pnpm importer。
+# 单 importer 约束（Playwright + aspect_rules_js link 协作）要求所有 e2e 依赖
+# 通过 root node_modules 统一解析。详见 e2e/BUILD.bazel 注释。

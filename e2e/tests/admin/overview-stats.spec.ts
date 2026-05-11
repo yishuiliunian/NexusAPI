@@ -1,5 +1,6 @@
 // Admin Overview 监控 E2E。
 import { expect, test } from '../../fixtures/auth';
+import { URLS } from '../../helpers/env';
 
 test.describe('Admin Overview 监控', () => {
   test.beforeEach(async ({ loginAsAdmin }) => {
@@ -8,9 +9,11 @@ test.describe('Admin Overview 监控', () => {
 
   test('四卡片 + 导航 + 图表占位可见', async ({ page }) => {
     await page.goto('/overview');
-    await expect(page.getByRole('heading', { name: /Admin Overview/ })).toBeVisible();
+    // 页面标题是「全局概览」（之前误写为 Admin Overview）
+    await expect(page.getByRole('heading', { name: /全局概览/ })).toBeVisible();
     await expect(page.getByText('总请求数')).toBeVisible();
-    await expect(page.getByText('总收入 (元)')).toBeVisible();
+    // 项目切 USD 后标签是 "总收入 (USD)"
+    await expect(page.getByText(/总收入 \(USD\)/)).toBeVisible();
     await expect(page.getByText('活跃用户')).toBeVisible();
     // "成功率" 在卡片 label + hint 里都出现；只验 StatCard label
     await expect(page.getByText(/^成功率$/).first()).toBeVisible();
@@ -21,8 +24,10 @@ test.describe('Admin Overview 监控', () => {
 
   test('时间窗口切换', async ({ page }) => {
     await page.goto('/overview');
+    // 等首屏完成
+    await page.waitForResponse((r) => r.url().includes('/api/admin/stats')).catch(() => null);
     const resp = page.waitForResponse((r) => r.url().includes('/api/admin/stats?days=30'));
-    await page.locator('select').first().selectOption('30');
+    await page.getByRole('button', { name: '30D' }).click();
     const r = await resp;
     expect(r.ok()).toBeTruthy();
   });
@@ -30,7 +35,7 @@ test.describe('Admin Overview 监控', () => {
   test('有流量：Top 用户表出现该用户', async ({ page, browser, loginAsAdmin, grantQuota }) => {
     // 独立 user context 产生流量（避免与 admin session 干扰）
     const userCtx = await browser.newContext({
-      baseURL: `http://127.0.0.1:${(await import('../../playwright.config')).PORTS.webUser}`,
+      baseURL: URLS.user,
     });
     const userPage = await userCtx.newPage();
     const email = `top-${Date.now()}@e2e.test`;

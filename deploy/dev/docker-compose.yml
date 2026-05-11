@@ -1,0 +1,77 @@
+# NexusAPI dev docker-compose — 基础设施层。
+#
+# 作用：仅承载「不需要热重载、不需要调试器」的依赖：
+#   - postgres   数据库
+#   - redis      速率限制 + 亲和缓存（NexusAPI 支持空 redis 走内存降级，本文件提供完整体验）
+#   - upstream-mock  Node 进程，假装是 OpenAI/Anthropic/GitHub/Google 上游
+#   - adminer    可选 Postgres web UI
+#
+# backend / web-user / web-admin **不在这里**，由 host_services.sh 在 host 上启动，
+# 享受 go run / next dev 的热重载。
+#
+# Worktree 隔离：COMPOSE_PROJECT_NAME 由 .env 注入，docker 自动给所有
+# container / volume / network 加 `nexusapi-<worktree>` 前缀。
+
+name: ${COMPOSE_PROJECT_NAME:-nexusapi-main}
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  upstream-mock:
+    # 直接挂源码跑，避免 build。改 .mjs 立即生效。
+    image: node:20-alpine
+    restart: unless-stopped
+    working_dir: /app
+    command: ["node", "/app/upstream-mock.mjs"]
+    environment:
+      UPSTREAM_PORT: "8080"
+      UPSTREAM_HOST: "0.0.0.0"
+    volumes:
+      - ../../e2e/scripts/upstream-mock.mjs:/app/upstream-mock.mjs:ro
+    ports:
+      - "${UPSTREAM_PORT}:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  adminer:
+    image: adminer:4
+    restart: unless-stopped
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+    ports:
+      - "${ADMINER_PORT}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pgdata:

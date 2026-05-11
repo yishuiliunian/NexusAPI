@@ -62,7 +62,10 @@ func (s *Selector) Affinity() Affinity { return s.affinity }
 
 // Candidates 返回符合条件的渠道列表（按 weight desc 排序）。
 // 会排除处于熔断冷却期的渠道。
-func (s *Selector) Candidates(ctx context.Context, model string, groupID uint64) ([]*domainchannel.Channel, error) {
+//
+// 三层白名单逐层 AND 交集：Group ∧ User ∧ ApiKey。
+// 任一参数为 0 视为"该层不限制"（与 channel 字段为空对称）。
+func (s *Selector) Candidates(ctx context.Context, model string, groupID, userID, apiKeyID uint64) ([]*domainchannel.Channel, error) {
 	all, err := s.repo.ListActive(ctx)
 	if err != nil {
 		return nil, err
@@ -76,6 +79,12 @@ func (s *Selector) Candidates(ctx context.Context, model string, groupID uint64)
 			continue
 		}
 		if !c.AllowGroup(groupID) {
+			continue
+		}
+		if !c.AllowUser(userID) {
+			continue
+		}
+		if !c.AllowApiKey(apiKeyID) {
 			continue
 		}
 		if s.lookup(c.Provider) == nil {

@@ -40,7 +40,8 @@ const (
 
 func main() {
 	var (
-		sqlitePath    = flag.String("sqlite", "/tmp/nexus-e2e.db", "SQLite 文件路径")
+		sqlitePath    = flag.String("sqlite", "", "SQLite 文件路径（与 --postgres-dsn 二选一）")
+		postgresDSN   = flag.String("postgres-dsn", "", "Postgres DSN（与 --sqlite 二选一）")
 		adminEmail    = flag.String("admin-email", "admin@e2e.test", "admin 邮箱")
 		adminPassword = flag.String("admin-password", "admin12345", "admin 密码")
 		userEmail     = flag.String("user-email", "alice@e2e.test", "普通 user 邮箱")
@@ -50,7 +51,21 @@ func main() {
 	)
 	flag.Parse()
 
-	gormDB, err := db.Open(db.Config{Driver: "sqlite", DSN: *sqlitePath})
+	// 选择数据库驱动：postgres 优先；都没传时回退到 SQLite 默认路径，保持向后兼容。
+	cfg := db.Config{}
+	switch {
+	case *postgresDSN != "":
+		cfg.Driver = "postgres"
+		cfg.DSN = *postgresDSN
+	case *sqlitePath != "":
+		cfg.Driver = "sqlite"
+		cfg.DSN = *sqlitePath
+	default:
+		cfg.Driver = "sqlite"
+		cfg.DSN = "/tmp/nexus-e2e.db"
+	}
+
+	gormDB, err := db.Open(cfg)
 	if err != nil {
 		fail("open db: %v", err)
 	}
@@ -154,13 +169,40 @@ func seedChannel(ctx context.Context, g *gorm.DB, upstream string) error {
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
 	}
-	// 也要再插一个 openai provider 的（/v1/chat/completions 路径用）
+	// OpenAI compat channel（/v1/chat/completions、/v1/embeddings 都走它）
 	ch2 := db.ChannelRow{
 		Name:            "mock-openai",
 		Provider:        "openai",
 		BaseURL:         upstream,
 		Credentials:     "sk-mock-openai-key",
-		Models:          []string{"gpt-4o-mini"},
+		Models:          []string{"gpt-4o-mini", "text-embedding-3-small"},
+		Weight:          100,
+		PriceMultiplier: 1.0,
+		Status:          "active",
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
+	}
+	// Midjourney 异步任务 channel：mj adaptor 调 {base}/submit/{action}，
+	// 在 BaseURL 里加 /mj 前缀，让 upstream-mock 能按路径分流。
+	ch3 := db.ChannelRow{
+		Name:            "mock-midjourney",
+		Provider:        "midjourney",
+		BaseURL:         upstream + "/mj",
+		Credentials:     "sk-mock-mj-key",
+		Models:          []string{"midjourney"},
+		Weight:          100,
+		PriceMultiplier: 1.0,
+		Status:          "active",
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
+	}
+	// Suno 异步音乐 channel：同理 BaseURL 加 /suno 前缀。
+	ch4 := db.ChannelRow{
+		Name:            "mock-suno",
+		Provider:        "suno",
+		BaseURL:         upstream + "/suno",
+		Credentials:     "sk-mock-suno-key",
+		Models:          []string{"suno-v3"},
 		Weight:          100,
 		PriceMultiplier: 1.0,
 		Status:          "active",
@@ -170,7 +212,13 @@ func seedChannel(ctx context.Context, g *gorm.DB, upstream string) error {
 	if err := upsertChannel(ctx, g, &ch); err != nil {
 		return err
 	}
-	return upsertChannel(ctx, g, &ch2)
+	if err := upsertChannel(ctx, g, &ch2); err != nil {
+		return err
+	}
+	if err := upsertChannel(ctx, g, &ch3); err != nil {
+		return err
+	}
+	return upsertChannel(ctx, g, &ch4)
 }
 
 func upsertChannel(ctx context.Context, g *gorm.DB, ch *db.ChannelRow) error {
@@ -187,6 +235,9 @@ func seedPrices(ctx context.Context, g *gorm.DB) error {
 	prices := []db.ModelPriceRow{
 		{Model: "gpt-4o-mini", Capability: "chat", InputPrice: 150, OutputPrice: 600, OutputMultiplier: 1, Enabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now()},
 		{Model: "claude-3-5-sonnet", Capability: "chat", InputPrice: 3000, OutputPrice: 15000, OutputMultiplier: 1, Enabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now()},
+		{Model: "text-embedding-3-small", Capability: "embedding", InputPrice: 20, OutputPrice: 0, OutputMultiplier: 1, Enabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now()},
+		{Model: "midjourney", Capability: "image", InputPrice: 0, OutputPrice: 0, TaskPrice: 50_000, Enabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now()},
+		{Model: "suno-v3", Capability: "task", InputPrice: 0, OutputPrice: 0, TaskPrice: 80_000, Enabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now()},
 	}
 	for i := range prices {
 		var ex db.ModelPriceRow

@@ -95,7 +95,7 @@ export default function KeysPage() {
               </h3>
             </div>
             <div className="mt-3 flex items-center justify-between gap-3 rounded-md bg-white p-3">
-              <code className="font-mono text-xs text-slate-900">{created.secret}</code>
+              <code data-testid="apikey-secret" className="font-mono text-xs text-slate-900">{created.secret}</code>
               <div className="flex gap-2">
                 <Button
                   variant="secondary"
@@ -122,6 +122,7 @@ export default function KeysPage() {
           <div className="flex items-center gap-3 p-5">
             <div className="flex-1">
               <Input
+                data-testid="apikey-name"
                 placeholder="例：production / dev-local / ci-runner"
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}

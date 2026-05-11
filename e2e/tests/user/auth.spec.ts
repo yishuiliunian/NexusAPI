@@ -28,7 +28,7 @@ test.describe('认证流程', () => {
     await page.fill('input[type="email"]', email);
     await page.fill('input[type="password"]', 'wrong-password');
     await page.getByRole('button', { name: /登录/ }).click();
-    await expect(page.locator('.text-red-600')).toContainText(/邮箱|密码/);
+    await expect(page.locator('.text-danger')).toContainText(/邮箱|密码/);
   });
 
   test('登录后通过 UI 跳转 dashboard', async ({ page, loginAsUser }) => {

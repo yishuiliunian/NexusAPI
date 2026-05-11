@@ -2,26 +2,32 @@
 
 Playwright 浏览器二进制约 200MB/家，不适合进 Bazel sandbox。
 策略：
-  - 源码 / 配置 / fixtures 通过 copy_to_bin 管起来
-  - 浏览器由 `pnpm --filter @nexusapi/e2e install-browsers` 一次性装到
+  - 源码 / 配置 / fixtures / pages / helpers 通过 copy_to_bin 管起来
+  - 浏览器由 `pnpm exec playwright install chromium` 一次性装到
     本地 ~/Library/Caches/ms-playwright（macOS）或 ~/.cache/ms-playwright（Linux）
   - `bazel run //e2e:test` 通过 PLAYWRIGHT_BROWSERS_PATH 指过去
+
+**单 importer 约束**：本目录 **不是 pnpm importer**（无 package.json）。
+所有依赖（@playwright/test, @axe-core/playwright, undici, @types/node, typescript）
+全部声明在 root package.json，从 root node_modules 解析。
+原因：aspect_rules_js 会为每个 pnpm importer 建独立 node_modules，
+ESM 在子 importer 内 import 同一 npm 包会得到不同 link path，
+Playwright runner 启动时 module identity 检查失败（"two different versions"）。
 """
 
 load("@aspect_bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
-load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_library")
-load("@npm//:defs.bzl", "npm_link_all_packages")
-load("@npm//e2e:@playwright/test/package_json.bzl", playwright_bin = "bin")
+load("@aspect_rules_js//js:defs.bzl", "js_library")
+load("@npm//:@playwright/test/package_json.bzl", playwright_bin = "bin")
 
-npm_link_all_packages(name = "node_modules")
-
-# 源码（tests / fixtures / scripts / config）
+# 源码（tests / fixtures / pages / helpers / scripts / config）
 js_library(
     name = "sources",
     srcs = glob(
         [
             "tests/**/*.ts",
             "fixtures/**/*.ts",
+            "pages/**/*.ts",
+            "helpers/**/*.ts",
             "scripts/**/*.ts",
             "scripts/**/*.mjs",
             "playwright.config.ts",
@@ -35,18 +41,20 @@ js_library(
 exports_files([
     "playwright.config.ts",
     "tsconfig.json",
-    "package.json",
 ])
 
-# Playwright test CLI，走 npm 包的 bin 导出（而不是手写 entry_point）
-# 浏览器由本地缓存提供：首次需 `pnpm --filter @nexusapi/e2e install-browsers`
+# Playwright test CLI，走 root npm 包的 bin 导出（不在 e2e 单独 link）。
+# 浏览器由本地缓存提供：首次需 `pnpm exec playwright install chromium`。
 playwright_bin.playwright_binary(
     name = "test_bin",
     chdir = package_name(),
     data = [
-        "package.json",
-        ":node_modules",
         ":sources",
+        # root 的所有 npm link：e2e 通过 ESM 父链解析到 <runfiles>/_main/node_modules/。
+        "//:node_modules/@playwright/test",
+        "//:node_modules/@axe-core/playwright",
+        "//:node_modules/@types/node",
+        "//:node_modules/undici",
     ],
     fixed_args = ["test"],
     visibility = ["//visibility:public"],
@@ -55,5 +63,13 @@ playwright_bin.playwright_binary(
 alias(
     name = "test",
     actual = ":test_bin",
+    visibility = ["//visibility:public"],
+)
+
+# 一键清理 e2e 留下的进程（前端 next dev）+ 调 deploy/dev:clean 清掉 backend/docker。
+# 用法：bazel run //e2e:clean
+sh_binary(
+    name = "clean",
+    srcs = ["scripts/clean_runner.sh"],
     visibility = ["//visibility:public"],
 )

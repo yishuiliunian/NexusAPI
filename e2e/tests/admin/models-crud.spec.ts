@@ -10,10 +10,11 @@ test.describe('Admin Models CRUD', () => {
     await page.goto('/models');
     const model = `e2e-model-${Date.now()}`;
 
-    await page.getByPlaceholder(/model \(gpt-4o-mini\)/).fill(model);
-    await page.locator('select').first().selectOption('chat');
-    await page.getByPlaceholder(/input_price/).fill('200');
-    await page.getByPlaceholder(/output_price/).fill('800');
+    await page.getByTestId('model-name').fill(model);
+    await page.getByTestId('model-capability').selectOption('chat');
+    // input_price/output_price 在 UI 是 USD per 1M tokens；填 0.0002 / 0.0008（即 200/800 micro-per-token）
+    await page.getByTestId('model-input-price').fill('0.0002');
+    await page.getByTestId('model-output-price').fill('0.0008');
 
     const resp = page.waitForResponse(
       (r) => r.url().endsWith('/api/admin/models') && r.request().method() === 'PUT'

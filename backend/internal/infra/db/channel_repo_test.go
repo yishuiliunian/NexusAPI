@@ -130,3 +130,95 @@ func TestChannelRepo_DeleteAndNotFound(t *testing.T) {
 		t.Errorf("删除后应 NotFound, got %v", err)
 	}
 }
+
+// TestChannelRepo_UsersAndApiKeysRoundTrip 验证用户级 / ApiKey 级白名单的全量写入与回读。
+func TestChannelRepo_UsersAndApiKeysRoundTrip(t *testing.T) {
+	r := NewChannelRepo(newTestDB(t), cryptoutil.Noop())
+	ctx := context.Background()
+
+	c := mkChannel(t, r, func(c *channel.Channel) {
+		c.UserIDs = []uint64{100, 200, 300}
+		c.ApiKeyIDs = []uint64{11, 22}
+	})
+	got, err := r.GetByID(ctx, c.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.UserIDs) != 3 {
+		t.Errorf("UserIDs 未水合: %+v", got.UserIDs)
+	}
+	if len(got.ApiKeyIDs) != 2 {
+		t.Errorf("ApiKeyIDs 未水合: %+v", got.ApiKeyIDs)
+	}
+
+	// Update 走全量替换语义
+	c.UserIDs = []uint64{500}
+	c.ApiKeyIDs = nil // 清空恢复"不限制"
+	if err := r.Update(ctx, c); err != nil {
+		t.Fatal(err)
+	}
+	got, _ = r.GetByID(ctx, c.ID)
+	if len(got.UserIDs) != 1 || got.UserIDs[0] != 500 {
+		t.Errorf("Update 后 UserIDs 错: %+v", got.UserIDs)
+	}
+	if len(got.ApiKeyIDs) != 0 {
+		t.Errorf("Update 后 ApiKeyIDs 应清空: %+v", got.ApiKeyIDs)
+	}
+}
+
+// TestChannelRepo_DeleteCascadeGrants 验证渠道删除时关联白名单同事务清理。
+func TestChannelRepo_DeleteCascadeGrants(t *testing.T) {
+	r := NewChannelRepo(newTestDB(t), cryptoutil.Noop())
+	ctx := context.Background()
+
+	c := mkChannel(t, r, func(c *channel.Channel) {
+		c.GroupIDs = []uint64{1}
+		c.UserIDs = []uint64{100}
+		c.ApiKeyIDs = []uint64{77}
+	})
+	if err := r.Delete(ctx, c.ID); err != nil {
+		t.Fatal(err)
+	}
+
+	// 直接查关联表，应该都为空
+	var gCount, uCount, kCount int64
+	r.db.Model(&ChannelGroupRow{}).Where("channel_id = ?", c.ID).Count(&gCount)
+	r.db.Model(&ChannelUserRow{}).Where("channel_id = ?", c.ID).Count(&uCount)
+	r.db.Model(&ChannelApiKeyRow{}).Where("channel_id = ?", c.ID).Count(&kCount)
+	if gCount+uCount+kCount != 0 {
+		t.Errorf("级联清理失败: groups=%d users=%d apikeys=%d", gCount, uCount, kCount)
+	}
+}
+
+// TestChannelRepo_HydrateBatchLoadsAllGrants 验证 List/ListActive 批量加载三层白名单。
+func TestChannelRepo_HydrateBatchLoadsAllGrants(t *testing.T) {
+	r := NewChannelRepo(newTestDB(t), cryptoutil.Noop())
+	ctx := context.Background()
+
+	c1 := mkChannel(t, r, func(c *channel.Channel) {
+		c.Name = "ch1"
+		c.GroupIDs = []uint64{1, 2}
+		c.UserIDs = []uint64{100}
+	})
+	c2 := mkChannel(t, r, func(c *channel.Channel) {
+		c.Name = "ch2"
+		c.UserIDs = []uint64{200, 300}
+		c.ApiKeyIDs = []uint64{99}
+	})
+
+	out, err := r.ListActive(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	byID := map[uint64]*channel.Channel{}
+	for _, ch := range out {
+		byID[ch.ID] = ch
+	}
+	if len(byID[c1.ID].GroupIDs) != 2 || len(byID[c1.ID].UserIDs) != 1 {
+		t.Errorf("c1 hydrate 错: groups=%v users=%v", byID[c1.ID].GroupIDs, byID[c1.ID].UserIDs)
+	}
+	if len(byID[c2.ID].UserIDs) != 2 || len(byID[c2.ID].ApiKeyIDs) != 1 {
+		t.Errorf("c2 hydrate 错: users=%v apikeys=%v", byID[c2.ID].UserIDs, byID[c2.ID].ApiKeyIDs)
+	}
+}

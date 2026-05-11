@@ -8,14 +8,14 @@ test.describe('Admin Users 深度', () => {
     await loginAsAdmin();
   });
 
-  test('改配额通过 UI prompt', async ({ page }) => {
+  test('改余额通过 UI prompt', async ({ page }) => {
     await page.goto('/users');
     const aliceRow = page.locator('tr', { hasText: 'alice@e2e.test' });
     await expect(aliceRow).toBeVisible();
 
-    // 拦截 prompt：输入 77770000（避免 rounding 到整数）
+    // 拦截 prompt：输入 USD 数值（项目切 USD 后 prompt 输入单位是 USD）。
     page.on('dialog', async (d) => {
-      if (d.type() === 'prompt') await d.accept('77770000');
+      if (d.type() === 'prompt') await d.accept('77.7778');
       else await d.accept();
     });
 
@@ -23,18 +23,18 @@ test.describe('Admin Users 深度', () => {
     const quotaResp = page.waitForResponse(
       (r) => r.url().includes('/api/admin/users/') && r.url().endsWith('/quota') && r.request().method() === 'PUT'
     );
-    await aliceRow.getByRole('button', { name: /改配额/ }).click();
+    await aliceRow.getByRole('button', { name: /改余额/ }).click();
     const r = await quotaResp;
     expect(r.ok(), `quota resp: ${r.status()}`).toBeTruthy();
 
     // 等 list 刷新
     await page.waitForResponse((r) => r.url().includes('/api/admin/users'));
 
-    // 配额文案更新：77770000 / 1_000_000 = 77.777777 → toFixed(4) = "77.7778"
+    // 行内余额展示：$77.7778
     await expect(aliceRow).toContainText('$77.7778');
   });
 
-  test('改配额：空输入不提交', async ({ page }) => {
+  test('改余额：空输入不提交', async ({ page }) => {
     await page.goto('/users');
     const aliceRow = page.locator('tr', { hasText: 'alice@e2e.test' });
     let prompted = false;
@@ -42,9 +42,9 @@ test.describe('Admin Users 深度', () => {
       prompted = true;
       await d.dismiss(); // 空 = dismiss
     });
-    await aliceRow.getByRole('button', { name: /改配额/ }).click();
+    await aliceRow.getByRole('button', { name: /改余额/ }).click();
     expect(prompted).toBeTruthy();
-    // 无网络请求：配额未变
+    // 无网络请求：余额未变
   });
 
   test('用户列表包含 seed 两个账号', async ({ page }) => {

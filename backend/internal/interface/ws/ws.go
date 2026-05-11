@@ -62,7 +62,11 @@ func (h *Handler) proxy(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	candidates, err := h.Selector.Candidates(ctx, model, 0)
+	var groupID uint64
+	if u := middleware.CurrentUser(c); u != nil {
+		groupID = u.GroupID
+	}
+	candidates, err := h.Selector.Candidates(ctx, model, groupID, key.UserID, key.ID)
 	if err != nil || len(candidates) == 0 {
 		c.AbortWithStatus(http.StatusNotFound)
 		return

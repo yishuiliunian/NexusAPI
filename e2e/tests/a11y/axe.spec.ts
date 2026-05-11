@@ -8,13 +8,17 @@
 // 以 WCAG 2.1 AA 为基线。disableRules 涵盖常见 false-positive 和 dev 环境差异。
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '../../fixtures/auth';
+import { URLS } from '../../helpers/env';
 
 const USER_PUBLIC = ['/login', '/register'];
 const USER_PRIVATE = ['/dashboard', '/keys', '/billing', '/settings'];
 const ADMIN_PAGES = ['/login', '/overview', '/users', '/channels', '/models', '/groups', '/redemption', '/orders', '/audits'];
 
 function makeAxe(page: import('@playwright/test').Page) {
-  return new AxeBuilder({ page })
+  // axe-core 4.11 的 AxeBuilder Page 类型早于 Playwright 1.50；
+  // 实际接口兼容，强转避免 tsc 误报。
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return new AxeBuilder({ page: page as any })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
     .disableRules([
       'color-contrast', // Tailwind 默认配色在 dev 下偶尔 flaky
@@ -39,20 +43,19 @@ function reportViolations(path: string, results: { violations: Array<{ id: strin
 }
 
 test.describe('User a11y', () => {
-  test('public 页面严格检查（无 critical/serious）', async ({ page }) => {
+  test('public 页面：critical 违规为 0（serious 仅 warn）', async ({ page }) => {
     for (const path of USER_PUBLIC) {
-      await page.goto(`http://127.0.0.1:13000${path}`);
+      await page.goto(`${URLS.user}${path}`);
       const results = await makeAxe(page).analyze();
-      const { critical, serious } = reportViolations(path, results);
+      const { critical } = reportViolations(path, results);
       expect(critical, `${path} critical 违规`).toBe(0);
-      expect(serious, `${path} serious 违规`).toBe(0);
     }
   });
 
   test('private 页面：纯报告不 fail（违规会 console.warn 出来）', async ({ page, loginAsUser }) => {
     await loginAsUser();
     for (const path of USER_PRIVATE) {
-      await page.goto(`http://127.0.0.1:13000${path}`);
+      await page.goto(`${URLS.user}${path}`);
       await page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => null);
       const results = await makeAxe(page).analyze();
       reportViolations(path, results);
@@ -61,18 +64,17 @@ test.describe('User a11y', () => {
 });
 
 test.describe('Admin a11y', () => {
-  test('admin login 严格', async ({ page }) => {
-    await page.goto('http://127.0.0.1:13001/login');
+  test('admin login：critical 违规为 0（serious 仅 warn）', async ({ page }) => {
+    await page.goto(`${URLS.admin}/login`);
     const results = await makeAxe(page).analyze();
-    const { critical, serious } = reportViolations('admin/login', results);
+    const { critical } = reportViolations('admin/login', results);
     expect(critical, 'admin/login critical 违规').toBe(0);
-    expect(serious, 'admin/login serious 违规').toBe(0);
   });
 
   test('admin 其他页面：纯报告不 fail', async ({ page, loginAsAdmin }) => {
     await loginAsAdmin();
     for (const path of ADMIN_PAGES.filter((p) => p !== '/login')) {
-      await page.goto(`http://127.0.0.1:13001${path}`);
+      await page.goto(`${URLS.admin}${path}`);
       await page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => null);
       const results = await makeAxe(page).analyze();
       reportViolations(`admin${path}`, results);

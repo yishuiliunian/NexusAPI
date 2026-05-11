@@ -383,6 +383,10 @@ type channelReq struct {
 	Credentials     string   `json:"credentials"`
 	Models          []string `json:"models"`
 	GroupIDs        []uint64 `json:"group_ids"`
+	// UserIDs 用户级渠道白名单。空 = 不限制。v1 admin UI 暴露。
+	UserIDs []uint64 `json:"user_ids"`
+	// ApiKeyIDs ApiKey 级渠道白名单。空 = 不限制。v1 schema 就绪但 UI 暂不暴露。
+	ApiKeyIDs       []uint64 `json:"apikey_ids"`
 	Weight          int      `json:"weight"`
 	PriceMultiplier float64  `json:"price_multiplier"`
 	Status          string   `json:"status"`
@@ -406,6 +410,8 @@ func (h *Handler) createChannel(c *gin.Context) {
 		Credentials:     req.Credentials,
 		Models:          req.Models,
 		GroupIDs:        req.GroupIDs,
+		UserIDs:         req.UserIDs,
+		ApiKeyIDs:       req.ApiKeyIDs,
 		Weight:          defaultIntIfZero(req.Weight, 100),
 		PriceMultiplier: defaultFloatIfZero(req.PriceMultiplier, 1.0),
 		Status:          channel.Status(defaultStr(req.Status, "active")),
@@ -438,6 +444,8 @@ func (h *Handler) updateChannel(c *gin.Context) {
 	}
 	ch.Models = req.Models
 	ch.GroupIDs = req.GroupIDs
+	ch.UserIDs = req.UserIDs
+	ch.ApiKeyIDs = req.ApiKeyIDs
 	ch.Weight = defaultIntIfZero(req.Weight, 100)
 	ch.PriceMultiplier = defaultFloatIfZero(req.PriceMultiplier, 1.0)
 	ch.Status = channel.Status(defaultStr(req.Status, "active"))

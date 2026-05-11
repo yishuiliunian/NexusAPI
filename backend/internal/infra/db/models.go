@@ -140,6 +140,30 @@ type ChannelGroupRow struct {
 
 func (ChannelGroupRow) TableName() string { return "channel_groups" }
 
+// ChannelUserRow 渠道 × 用户 多对多关联表（用户级白名单）。
+//
+// 语义：channel.UserIDs 在 DB 层的物化。空 = 该渠道对所有用户开放。
+// 删除 channel/user 时由仓储层级联清理。
+type ChannelUserRow struct {
+	ChannelID uint64 `gorm:"primaryKey;autoIncrement:false"`
+	UserID    uint64 `gorm:"primaryKey;autoIncrement:false;index"`
+	CreatedAt time.Time
+}
+
+func (ChannelUserRow) TableName() string { return "channel_users" }
+
+// ChannelApiKeyRow 渠道 × ApiKey 多对多关联表（Key 级白名单）。
+//
+// 语义：channel.ApiKeyIDs 在 DB 层的物化。空 = 该渠道对所有 ApiKey 开放。
+// v1 admin UI 暂不暴露，但 schema 与过滤逻辑就绪。
+type ChannelApiKeyRow struct {
+	ChannelID uint64 `gorm:"primaryKey;autoIncrement:false"`
+	ApiKeyID  uint64 `gorm:"primaryKey;autoIncrement:false;index"`
+	CreatedAt time.Time
+}
+
+func (ChannelApiKeyRow) TableName() string { return "channel_apikeys" }
+
 // ModelPriceRow 模型价格表映射。
 type ModelPriceRow struct {
 	ID               uint64  `gorm:"primaryKey;autoIncrement"`

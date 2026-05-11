@@ -5,9 +5,19 @@
 //   test('foo', async ({ page, loginAsUser, createApiKey }) => { ... });
 //
 // 策略：每个测试独立随机邮箱。session cookie 由 Playwright context 自动维护。
+//
+// 内置 console-error 守卫（默认 warn 模式）：
+//   - 自动给 page 绑定 console.error / pageerror 监听
+//   - 测试结束时打印聚合摘要到 stderr（不中断测试）
+//   - 如需 strict 模式（出错即 fail），spec 用 `test.use({ strictConsole: true })`。
 import { test as base, type Page, expect } from '@playwright/test';
 import { fetch as undiciFetch } from 'undici';
 import { API_BASE, PORTS } from '../playwright.config';
+import {
+  assertNoConsoleErrors,
+  watchPageErrors,
+  type ConsoleErrorCollector,
+} from '../helpers/console-errors';
 
 export type AuthFixtures = {
   // loginAsUser 注册（如不存在）+ 登录；返回邮箱。
@@ -21,6 +31,13 @@ export type AuthFixtures = {
   grantQuota: (email: string, quota: number) => Promise<void>;
   // resetDb 调用 seed --reset 清库。少用，只在 integration 需要时。
   resetDb: () => Promise<void>;
+  // 收集到的前端错误。spec 可主动读用作自定义断言。
+  consoleErrors: ConsoleErrorCollector;
+};
+
+export type AuthOptions = {
+  // strict 模式：测试结束后若有 console.error/pageerror 任意一条则 fail。
+  strictConsole: boolean;
 };
 
 export const SEED_ADMIN = { email: 'admin@e2e.test', password: 'admin12345' };
@@ -31,7 +48,30 @@ function randEmail() {
   return `u-${s}@e2e.test`;
 }
 
-export const test = base.extend<AuthFixtures>({
+export const test = base.extend<AuthFixtures & AuthOptions>({
+  strictConsole: [false, { option: true }],
+
+  // 自动 fixture：每个 test 都获得 watcher；strict 决定结束时是否 throw。
+  consoleErrors: [
+    async ({ page, strictConsole }, use, testInfo) => {
+      const collector = watchPageErrors(page);
+      await use(collector);
+      collector.dispose();
+      const total = collector.consoleErrors.length + collector.pageErrors.length;
+      if (total === 0) return;
+      if (strictConsole) {
+        assertNoConsoleErrors(collector);
+      } else {
+        // warn 模式：记录到 testInfo.annotations，方便 CI report 查看。
+        testInfo.annotations.push({
+          type: 'console-warnings',
+          description: `console:${collector.consoleErrors.length} pageerror:${collector.pageErrors.length}`,
+        });
+      }
+    },
+    { auto: true },
+  ],
+
   loginAsUser: async ({ page }, use) => {
     async function login(overrides?: { email?: string; password?: string }) {
       const email = overrides?.email ?? randEmail();
@@ -120,25 +160,25 @@ export const test = base.extend<AuthFixtures>({
 
   resetDb: async ({}, use) => {
     async function reset() {
-      // 通过 spawn go run e2e-seed 重置，而不是走 HTTP（没有 admin 接口）。
+      // 走 bazel run //backend/cmd/e2e-seed -- --reset，与 deploy/dev 体系一致。
+      // 不使用 import.meta.url（playwright 1.x CJS loader 不兼容）；
+      // 走 BUILD_WORKSPACE_DIRECTORY > cwd 推断仓库根。
       const { spawnSync } = await import('node:child_process');
-      const { resolve, dirname } = await import('node:path');
-      const { fileURLToPath } = await import('node:url');
-      const here = dirname(fileURLToPath(import.meta.url));
-      const root = resolve(here, '..', '..');
-      const dbPath = resolve(root, 'e2e', '.tmp', 'nexus-e2e.db');
+      const root = process.env.BUILD_WORKSPACE_DIRECTORY ?? process.cwd();
+      const { postgresDSN, URLS } = await import('../helpers/env');
       const r = spawnSync(
-        'go',
+        'bazel',
         [
           'run',
-          './cmd/e2e-seed',
-          '--sqlite',
-          dbPath,
+          '//backend/cmd/e2e-seed',
+          '--',
+          '--postgres-dsn',
+          postgresDSN(),
           '--upstream-url',
-          `http://127.0.0.1:${PORTS.upstream}`,
+          URLS.upstream,
           '--reset',
         ],
-        { cwd: resolve(root, 'backend'), stdio: 'inherit' }
+        { cwd: root, stdio: 'inherit' },
       );
       if (r.status !== 0) throw new Error(`seed reset failed: ${r.status}`);
     }

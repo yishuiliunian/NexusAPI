@@ -76,11 +76,15 @@ const server = createServer(async (req, res) => {
   // ---------- /v1/models —— OpenAI 兼容 + Anthropic 共用该端点 ----------
   if (req.method === 'GET' && (pathOnly === '/v1/models' || pathOnly === '/models')) {
     // 无论 OpenAI（Authorization: Bearer）还是 Anthropic（x-api-key）都返回相同 mock 列表。
+    // 关键：保留 seed 出来的 e2e 测试用模型（embedding / claude-3-5-sonnet），
+    // 避免 admin sync-models 把 seed 的 mock-openai.models 冲掉导致后续 spec 路由失败。
     return send(res, 200, {
       data: [
         { id: 'gpt-4o', object: 'model' },
         { id: 'gpt-4o-mini', object: 'model' },
+        { id: 'claude-3-5-sonnet', object: 'model' },
         { id: 'claude-sonnet-4-5', object: 'model' },
+        { id: 'text-embedding-3-small', object: 'model' },
       ],
     });
   }
@@ -194,6 +198,31 @@ const server = createServer(async (req, res) => {
     });
   }
 
+  // ---------- AI 任务 mock (midjourney / suno) ----------
+  // GET /mj/task/:id/fetch
+  {
+    const mj = /^\/mj\/task\/([^/]+)\/fetch$/.exec(pathOnly);
+    if (req.method === 'GET' && mj) {
+      return send(res, 200, {
+        id: mj[1],
+        status: 'SUCCESS',
+        progress: '100%',
+        imageUrl: `http://127.0.0.1:${PORT}/mock/${mj[1]}.png`,
+      });
+    }
+  }
+  // GET /suno/fetch/:id
+  {
+    const suno = /^\/suno\/fetch\/([^/]+)$/.exec(pathOnly);
+    if (req.method === 'GET' && suno) {
+      return send(res, 200, {
+        status: 'success',
+        audio_url: `http://127.0.0.1:${PORT}/mock/${suno[1]}.mp3`,
+        task_id: suno[1],
+      });
+    }
+  }
+
   // ---------- OpenAI / Anthropic passthrough mock ----------
   if (req.method !== 'POST') {
     return send(res, 404, { error: `not found ${pathOnly}` });
@@ -206,6 +235,25 @@ const server = createServer(async (req, res) => {
     return send(res, 400, { error: 'bad json' });
   }
   const streaming = body.stream === true;
+
+  // POST /mj/submit/{action} - midjourney
+  if (/^\/mj\/submit\//.test(pathOnly)) {
+    return send(res, 200, { code: 1, result: `mj-${Date.now()}` });
+  }
+  // POST /suno/submit/{action}
+  if (/^\/suno\/submit\//.test(pathOnly)) {
+    return send(res, 200, { task_id: `suno-${Date.now()}` });
+  }
+
+  // POST /v1/embeddings (OpenAI 协议)
+  if (pathOnly.endsWith('/embeddings')) {
+    return send(res, 200, {
+      object: 'list',
+      model: body.model ?? 'text-embedding-3-small',
+      data: [{ object: 'embedding', index: 0, embedding: [0.1, 0.2, 0.3] }],
+      usage: { prompt_tokens: 5, total_tokens: 5 },
+    });
+  }
 
   if (pathOnly.endsWith('/chat/completions')) {
     if (streaming) {
@@ -261,8 +309,11 @@ const server = createServer(async (req, res) => {
   send(res, 404, { error: `no mock for ${pathOnly}` });
 });
 
-server.listen(PORT, '127.0.0.1', () => {
-  console.log(`[upstream-mock] listening on http://127.0.0.1:${PORT}`);
+// 监听 host：容器内必须 0.0.0.0 以便从宿主机/其他容器访问；
+// 直接 spawn 在 host 时绑 127.0.0.1 更安全。用 UPSTREAM_HOST 显式控制。
+const HOST = process.env.UPSTREAM_HOST ?? '127.0.0.1';
+server.listen(PORT, HOST, () => {
+  console.log(`[upstream-mock] listening on http://${HOST}:${PORT}`);
 });
 
 process.on('SIGTERM', () => server.close(() => process.exit(0)));

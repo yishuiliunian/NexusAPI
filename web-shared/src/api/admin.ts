@@ -10,6 +10,10 @@ export interface Channel {
   base_url: string;
   models: string[] | null;
   group_ids: number[] | null;
+  /** 用户级渠道白名单：空/null = 不限制。admin 后台可编辑。 */
+  user_ids: number[] | null;
+  /** ApiKey 级渠道白名单：空/null = 不限制。v1 schema 就绪，UI 暂不暴露。 */
+  apikey_ids: number[] | null;
   weight: number;
   price_multiplier: number;
   status: string;

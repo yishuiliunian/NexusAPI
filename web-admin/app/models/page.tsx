@@ -91,6 +91,7 @@ export default function ModelsPage() {
           <div className="mt-4 grid gap-3 md:grid-cols-3">
             <Field label="model">
               <Input
+                data-testid="model-name"
                 value={form.model ?? ''}
                 onChange={(e) => setForm({ ...form, model: e.target.value })}
                 placeholder="gpt-4o-mini"
@@ -99,6 +100,7 @@ export default function ModelsPage() {
             </Field>
             <Field label="capability">
               <select
+                data-testid="model-capability"
                 value={form.capability}
                 onChange={(e) => setForm({ ...form, capability: e.target.value })}
                 className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
@@ -110,6 +112,7 @@ export default function ModelsPage() {
             </Field>
             <Field label="input 价（USD / 1M tokens）">
               <Input
+                data-testid="model-input-price"
                 type="number"
                 step="0.0001"
                 value={(form.input_price ?? 0) / 1_000_000}
@@ -121,6 +124,7 @@ export default function ModelsPage() {
             </Field>
             <Field label="output 价（USD / 1M tokens）">
               <Input
+                data-testid="model-output-price"
                 type="number"
                 step="0.0001"
                 value={(form.output_price ?? 0) / 1_000_000}

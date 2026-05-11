@@ -140,7 +140,7 @@ func (h *Handler) handle(route *Route) gin.HandlerFunc {
 			return
 		}
 
-		candidates, err := h.pickCandidates(ctx, route, normalizedModel, key.UserID)
+		candidates, err := h.pickCandidates(ctx, route, normalizedModel, key.UserID, key.ID, currentGroupID(c))
 		if err != nil {
 			httperr.Abort(c, err)
 			return
@@ -240,8 +240,10 @@ func (h *Handler) pickCandidates(
 	route *Route,
 	model string,
 	userID uint64,
+	apiKeyID uint64,
+	groupID uint64,
 ) ([]*domainchannel.Channel, error) {
-	cands, err := h.Selector.Candidates(ctx, model, 0)
+	cands, err := h.Selector.Candidates(ctx, model, groupID, userID, apiKeyID)
 	if err != nil {
 		return nil, derrors.New(derrors.CodeNotFound, "无可用渠道支持模型 "+model)
 	}
@@ -281,6 +283,17 @@ func baseURLOf(ch *domainchannel.Channel, fallback string) string {
 		return ch.BaseURL
 	}
 	return fallback
+}
+
+// currentGroupID 安全地从 gin.Context 取当前用户的 GroupID；缺失返回 0。
+// 0 在 Channel.AllowGroup 语义里等同"用户不属于任何分组"，
+// channel 的 GroupIDs 白名单非空时会被过滤掉，与既有行为一致。
+func currentGroupID(c *gin.Context) uint64 {
+	u := middleware.CurrentUser(c)
+	if u == nil {
+		return 0
+	}
+	return u.GroupID
 }
 
 // shouldFailover 判断错误是否发生在"客户端尚未收到字节"阶段，可以换 channel 重试。

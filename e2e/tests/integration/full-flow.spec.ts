@@ -10,9 +10,9 @@ test.describe('端到端：注册 → 建 key → 调用 → 计费落库', () =
 
     // 2. 建 ApiKey（UI 路径）
     await page.goto('/keys');
-    await page.fill('input[placeholder*="名称"]', 'e2e-key');
-    await page.getByRole('button', { name: '创建' }).click();
-    const secretCode = page.locator('code').first();
+    await page.getByTestId('apikey-name').fill('e2e-key');
+    await page.getByRole('button', { name: /\+ 新建|^创建$/ }).click();
+    const secretCode = page.getByTestId('apikey-secret');
     await expect(secretCode).toBeVisible();
     const secret = (await secretCode.textContent()) ?? '';
     expect(secret).toMatch(/^sk-nexus-/);

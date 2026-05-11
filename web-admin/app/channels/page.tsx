@@ -11,6 +11,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import {
   adminApi,
+  AdminUser,
   ApiClientError,
   Badge,
   Button,
@@ -33,6 +34,8 @@ interface FormState {
   price_multiplier: number;
   status: string;
   note: string;
+  // user_ids 用户级渠道白名单。空数组 = 不限制（对所有用户开放）。
+  user_ids: number[];
 }
 
 const EMPTY_FORM: FormState = {
@@ -45,11 +48,13 @@ const EMPTY_FORM: FormState = {
   price_multiplier: 1.0,
   status: 'active',
   note: '',
+  user_ids: [],
 };
 
 export default function ChannelsPage() {
   const [items, setItems] = useState<Channel[]>([]);
   const [providers, setProviders] = useState<string[]>([]);
+  const [users, setUsers] = useState<AdminUser[]>([]);
   const [mode, setMode] = useState<Mode>('closed');
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [syncing, setSyncing] = useState(false);
@@ -60,6 +65,10 @@ export default function ChannelsPage() {
     setItems(r.items);
     const p = await adminApi.providers();
     setProviders(p.providers);
+    // 单次拉用户列表用于多选。size=500 覆盖绝大多数场景；
+    // 超出再迭代支持搜索（v1 范围外）。
+    const u = await adminApi.listUsers(1, 500);
+    setUsers(u.items);
   }
 
   useEffect(() => {
@@ -82,6 +91,7 @@ export default function ChannelsPage() {
       price_multiplier: c.price_multiplier,
       status: c.status ?? 'active',
       note: c.note ?? '',
+      user_ids: c.user_ids ?? [],
     });
     setMode({ kind: 'edit', id: c.id });
   }
@@ -89,6 +99,16 @@ export default function ChannelsPage() {
   function close() {
     setMode('closed');
     setForm(EMPTY_FORM);
+  }
+
+  function toggleUser(id: number) {
+    setForm((f) => {
+      const has = f.user_ids.includes(id);
+      return {
+        ...f,
+        user_ids: has ? f.user_ids.filter((u) => u !== id) : [...f.user_ids, id],
+      };
+    });
   }
 
   async function submit() {
@@ -100,6 +120,7 @@ export default function ChannelsPage() {
           .split(',')
           .map((s) => s.trim())
           .filter(Boolean),
+        user_ids: form.user_ids,
       };
       if (mode === 'create') {
         await adminApi.createChannel(payload);
@@ -165,6 +186,7 @@ export default function ChannelsPage() {
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               <DarkLabel label="名称">
                 <Input
+                  data-testid="channel-name"
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                   className="bg-slate-900 text-white border-slate-700"
@@ -186,6 +208,7 @@ export default function ChannelsPage() {
               </DarkLabel>
               <DarkLabel label="Base URL（留空用默认）">
                 <Input
+                  data-testid="channel-base-url"
                   value={form.base_url}
                   onChange={(e) => setForm({ ...form, base_url: e.target.value })}
                   placeholder="https://api.openai.com/v1"
@@ -194,6 +217,7 @@ export default function ChannelsPage() {
               </DarkLabel>
               <DarkLabel label={isEdit ? '凭证（留空表示不变）' : '凭证（API Key）'}>
                 <Input
+                  data-testid="channel-credentials"
                   value={form.credentials}
                   onChange={(e) => setForm({ ...form, credentials: e.target.value })}
                   placeholder="sk-..."
@@ -216,6 +240,7 @@ export default function ChannelsPage() {
                 </div>
                 <div className="mt-1">
                   <Input
+                    data-testid="channel-models"
                     value={form.models}
                     onChange={(e) => setForm({ ...form, models: e.target.value })}
                     placeholder="gpt-4o,gpt-4o-mini,claude-3-5-sonnet"
@@ -225,6 +250,7 @@ export default function ChannelsPage() {
               </div>
               <DarkLabel label="权重">
                 <Input
+                  data-testid="channel-weight"
                   type="number"
                   value={form.weight}
                   onChange={(e) => setForm({ ...form, weight: Number(e.target.value) })}
@@ -233,6 +259,7 @@ export default function ChannelsPage() {
               </DarkLabel>
               <DarkLabel label="价格倍率">
                 <Input
+                  data-testid="channel-price-multiplier"
                   type="number"
                   step="0.01"
                   value={form.price_multiplier}
@@ -242,6 +269,7 @@ export default function ChannelsPage() {
               </DarkLabel>
               <DarkLabel label="状态">
                 <select
+                  data-testid="channel-status"
                   className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-white"
                   value={form.status}
                   onChange={(e) => setForm({ ...form, status: e.target.value })}
@@ -258,6 +286,50 @@ export default function ChannelsPage() {
                   className="bg-slate-900 text-white border-slate-700"
                 />
               </DarkLabel>
+              <div className="md:col-span-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-medium text-slate-300">
+                    允许的用户（空 = 不限制，对所有用户开放）
+                  </label>
+                  {form.user_ids.length > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setForm({ ...form, user_ids: [] })}
+                    >
+                      清空（{form.user_ids.length} 已选）
+                    </Button>
+                  )}
+                </div>
+                <div className="mt-1 max-h-48 overflow-y-auto rounded-md border border-slate-700 bg-slate-900 p-2">
+                  {users.length === 0 ? (
+                    <p className="px-2 py-3 text-xs text-slate-500">暂无用户</p>
+                  ) : (
+                    <div className="grid gap-1 sm:grid-cols-2 lg:grid-cols-3">
+                      {users.map((u) => {
+                        const checked = form.user_ids.includes(u.id);
+                        return (
+                          <label
+                            key={u.id}
+                            className={`flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-xs ${
+                              checked ? 'bg-slate-700 text-white' : 'text-slate-400 hover:bg-slate-800'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggleUser(u.id)}
+                              className="accent-blue-500"
+                            />
+                            <span className="font-mono">#{u.id}</span>
+                            <span className="truncate">{u.email}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
             <div className="mt-4 flex justify-end gap-2">
               <Button variant="ghost" onClick={close}>

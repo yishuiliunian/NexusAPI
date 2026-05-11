@@ -22,6 +22,11 @@ const (
 // Channel 上游渠道实体。
 //
 // Credentials 加 json:"-" 防止管理台误序列化泄漏。
+//
+// 访问控制三层白名单（Group / User / ApiKey）逐层 AND 交集：
+//   - 任一列表为空 = 该层不限制
+//   - 全部为空 = 完全开放
+//   - 选路时由 Selector.Candidates 统一判定
 type Channel struct {
 	ID              uint64     `json:"id"`
 	Name            string     `json:"name"`
@@ -30,6 +35,8 @@ type Channel struct {
 	Credentials     string     `json:"-"` // 仅在 handler 里显式暴露；默认不进任何 JSON
 	Models          []string   `json:"models"`
 	GroupIDs        []uint64   `json:"group_ids"`
+	UserIDs         []uint64   `json:"user_ids"`   // 用户级白名单；空 = 不限制
+	ApiKeyIDs       []uint64   `json:"apikey_ids"` // ApiKey 级白名单；空 = 不限制
 	Weight          int        `json:"weight"`
 	PriceMultiplier float64    `json:"price_multiplier"`
 	Status          Status     `json:"status"`
@@ -60,6 +67,32 @@ func (c *Channel) AllowGroup(groupID uint64) bool {
 	}
 	for _, g := range c.GroupIDs {
 		if g == groupID {
+			return true
+		}
+	}
+	return false
+}
+
+// AllowUser 判断渠道是否对指定用户开放。空 UserIDs 表示不做用户级限制。
+func (c *Channel) AllowUser(userID uint64) bool {
+	if len(c.UserIDs) == 0 {
+		return true
+	}
+	for _, u := range c.UserIDs {
+		if u == userID {
+			return true
+		}
+	}
+	return false
+}
+
+// AllowApiKey 判断渠道是否对指定 ApiKey 开放。空 ApiKeyIDs 表示不做 Key 级限制。
+func (c *Channel) AllowApiKey(apiKeyID uint64) bool {
+	if len(c.ApiKeyIDs) == 0 {
+		return true
+	}
+	for _, k := range c.ApiKeyIDs {
+		if k == apiKeyID {
 			return true
 		}
 	}

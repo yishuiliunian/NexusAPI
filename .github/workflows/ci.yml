@@ -64,10 +64,17 @@ jobs:
         run: pnpm --filter @nexusapi/shared test
 
   # e2e: 实栈 Playwright 测试
+  #
+  # 改造记录：
+  #   - 旧版用 pnpm --filter @nexusapi/e2e，但 e2e 已从 pnpm workspace 摘除
+  #     （@playwright/test 单 importer 约束），filter 失效。
+  #   - 旧版装 sqlite3 给 db-helper，已切 Postgres（docker exec psql），不再需要。
+  #   - 现走 `bazel run //e2e:test` —— global-setup 自动起 docker infra +
+  #     bazel run //backend/cmd/server + 双前端，与本地开发同口径。
   e2e:
     name: e2e (playwright)
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
     needs: [bazel, frontend-unit]
     steps:
       - uses: actions/checkout@v4
@@ -87,24 +94,29 @@ jobs:
           node-version: "20"
           cache: pnpm
 
-      - name: install sqlite3 CLI (for DB helper queries)
-        run: sudo apt-get update && sudo apt-get install -y sqlite3
-
       - name: install deps
         run: pnpm install --frozen-lockfile
 
+      # @playwright/test 在 root devDependencies，从 root 安装 chromium。
       - name: install playwright browsers
-        run: pnpm --filter @nexusapi/e2e install-browsers
+        run: pnpm exec playwright install chromium --with-deps
 
+      # ubuntu-latest 自带 docker。bazel run //deploy/dev:backend_only 会拉
+      # postgres / redis / upstream-mock 三个 container（首跑 ~30s pull）。
       - name: run user + admin + integration
-        run: pnpm --filter @nexusapi/e2e test -- --project=user --project=admin --project=integration
+        run: bazel run //e2e:test -- --project=user --project=admin --project=integration
 
       - name: run a11y
-        run: pnpm --filter @nexusapi/e2e test -- --project=a11y
+        run: bazel run //e2e:test -- --project=a11y
 
       - name: run visual regression
-        run: pnpm --filter @nexusapi/e2e test -- --project=visual
+        run: bazel run //e2e:test -- --project=visual
         continue-on-error: true  # OS 差异导致的基线偏差作为 observation
+
+      - name: stop dev stack
+        if: always()
+        run: bazel run //e2e:clean
+        continue-on-error: true
 
       - name: upload playwright report
         if: always()
@@ -116,10 +128,10 @@ jobs:
             e2e/test-results
           retention-days: 14
 
-      - name: upload backend logs on failure
+      - name: upload backend / dev runtime logs on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-backend-artifacts
-          path: e2e/.tmp
+          name: e2e-dev-runtime
+          path: deploy/dev/runtime
           retention-days: 7

@@ -2,7 +2,7 @@
 //
 // 策略：
 //   - E2E 用 Noop mailer，不发真实邮件。token 写入 verify_tokens 表。
-//   - 测试通过 db-helper 直接查 token，走 /api/auth/verify + /api/auth/reset。
+//   - 测试通过 db-helper（docker exec psql）直接查 token，走 /api/auth/verify + /api/auth/reset。
 import { expect, test } from '../../fixtures/auth';
 import { emailVerified, latestVerifyToken } from '../../fixtures/db-helper';
 

@@ -9,11 +9,11 @@ test.describe('ApiKey 管理', () => {
   test('创建 + 展示 secret + 列表刷新', async ({ page }) => {
     await page.goto('/keys');
     await expect(page.getByRole('heading', { name: /API Keys/ })).toBeVisible();
-    await page.fill('input[placeholder*="名称"]', 'dev-key');
-    await page.getByRole('button', { name: '创建' }).click();
+    await page.getByTestId('apikey-name').fill('dev-key');
+    await page.getByRole('button', { name: /\+ 新建|^创建$/ }).click();
 
-    // 一次性 secret 显示
-    const secret = page.locator('code').first();
+    // 一次性 secret 显示（用 testid 精准定位弹窗内的 code，避免与 curl 示例冲突）
+    const secret = page.getByTestId('apikey-secret');
     await expect(secret).toBeVisible();
     await expect(secret).toContainText(/sk-nexus-/);
 
@@ -23,15 +23,16 @@ test.describe('ApiKey 管理', () => {
 
   test('空名称不提交（无 apikey 生成）', async ({ page }) => {
     await page.goto('/keys');
-    await page.getByRole('button', { name: '创建' }).click();
-    // 依然在页面，code.sk-nexus 不应出现
-    await expect(page.locator('code').filter({ hasText: /sk-nexus-/ })).toHaveCount(0);
+    // 名称为空时按钮 disabled，不可创建
+    await expect(page.getByRole('button', { name: /\+ 新建|^创建$/ })).toBeDisabled();
+    // 没创建过 key → 弹窗里的 secret 元素不存在
+    await expect(page.getByTestId('apikey-secret')).toHaveCount(0);
   });
 
   test('删除 key（autoaccept confirm）', async ({ page }) => {
     await page.goto('/keys');
-    await page.fill('input[placeholder*="名称"]', 'to-delete');
-    await page.getByRole('button', { name: '创建' }).click();
+    await page.getByTestId('apikey-name').fill('to-delete');
+    await page.getByRole('button', { name: /\+ 新建|^创建$/ }).click();
     await expect(page.locator('table')).toContainText('to-delete');
 
     // 先关闭 secret 弹层，避免 "关闭" / "复制" 按钮混淆
@@ -51,7 +52,7 @@ test.describe('ApiKey 管理', () => {
     const r = await delResp;
     expect(r.ok(), `delete resp: ${r.status()}`).toBeTruthy();
 
-    // 删完最后一个：table 消失、显示 "暂无密钥"
-    await expect(page.getByText('暂无密钥')).toBeVisible();
+    // 删完最后一个：列表空态文案
+    await expect(page.getByText('还没有密钥')).toBeVisible();
   });
 });

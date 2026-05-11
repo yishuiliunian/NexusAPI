@@ -7,6 +7,11 @@
 *.test
 *.out
 /backend/coverage.*
+# go build 产物：仓库根残留的 e2e-seed / migrate / server / worker 等命令二进制
+/e2e-seed
+/migrate
+/server
+/worker
 
 # Node
 node_modules/
@@ -23,6 +28,9 @@ pnpm-debug.log*
 .idea/
 *.swp
 .DS_Store
+
+# Claude Code 私有目录（hooks / worktrees / memory 不入仓库）
+.claude/
 
 # Env / secrets
 .env

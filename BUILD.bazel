@@ -13,6 +13,12 @@ load("@gazelle//:def.bzl", "gazelle")
 load("@npm//:defs.bzl", "npm_link_all_packages")
 
 # gazelle:prefix github.com/yishuiliunian/nexusapi
+# gazelle:exclude .claude
+# gazelle:exclude node_modules
+# gazelle:exclude bazel-bin
+# gazelle:exclude bazel-out
+# gazelle:exclude bazel-testlogs
+# gazelle:exclude bazel-NexusAPI
 gazelle(name = "gazelle")
 
 gazelle(

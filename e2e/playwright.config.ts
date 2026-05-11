@@ -1,26 +1,21 @@
 // Playwright E2E 配置：真栈端到端。
 //
-// 使用 global-setup.ts 启动 backend + upstream mock + web-user + web-admin，
-// global-teardown.ts 负责清理。
+// 端口与 base URL 全部从 helpers/env.ts 取（优先 process.env，其次 deploy/dev/.env，
+// 最后 fallback 到 20000 系列）。这样 e2e 与 dev 共用同一套端口分配，且支持 worktree 隔离。
 //
-// 端口（避免撞开发端口）：
-//   backend   18080
-//   upstream  18090
-//   web-user  13000
-//   web-admin 13001
+// 启动策略：
+//   - 如果 backend /healthz 已就绪（用户在跑 ./deploy/dev/dev.sh）→ global-setup 仅 reset DB
+//   - 否则 global-setup 会调 deploy/dev/dev.sh --backend-only 拉起 infra+backend，
+//     再自己 spawn web-user / web-admin
 import { defineConfig, devices } from '@playwright/test';
+import { PORTS, URLS } from './helpers/env';
 
-// 对外常量，方便测试文件 import。
-export const PORTS = {
-  backend: 18080,
-  upstream: 18090,
-  webUser: 13000,
-  webAdmin: 13001,
-} as const;
+// 重新导出以兼容既有 spec：`import { PORTS, API_BASE } from '../../playwright.config'`
+export { PORTS } from './helpers/env';
 
-export const USER_BASE = `http://127.0.0.1:${PORTS.webUser}`;
-export const ADMIN_BASE = `http://127.0.0.1:${PORTS.webAdmin}`;
-export const API_BASE = `http://127.0.0.1:${PORTS.backend}`;
+export const USER_BASE = URLS.user;
+export const ADMIN_BASE = URLS.admin;
+export const API_BASE = URLS.api;
 
 export default defineConfig({
   testDir: './tests',
@@ -91,3 +86,5 @@ export default defineConfig({
       : []),
   ],
 });
+// 静态使用一下 PORTS，防止 tree-shaking 把 helpers/env.ts 误删；同时辅助调试。
+void PORTS;

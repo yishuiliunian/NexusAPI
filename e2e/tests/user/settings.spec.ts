@@ -8,8 +8,9 @@ test.describe('Settings', () => {
 
   test('展示邮箱和余额', async ({ page }) => {
     await page.goto('/settings');
-    await expect(page.getByText(/邮箱：/)).toBeVisible();
-    await expect(page.getByText(/^余额：/)).toBeVisible();
+    // 页面用 <Field label="邮箱"> 渲染（无冒号），余额是 "当前余额" + "$xxx"
+    await expect(page.getByText(/^邮箱$/).first()).toBeVisible();
+    await expect(page.getByText(/当前余额/)).toBeVisible();
   });
 
   test('页面无未捕获异常', async ({ page }) => {

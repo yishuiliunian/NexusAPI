@@ -22,13 +22,14 @@ test.describe('Billing 按量计费', () => {
     await page.goto('/billing');
     await page.getByPlaceholder(/NEXUS-/).fill('INVALID-CODE-123');
     await page.getByRole('button', { name: /激活/ }).click();
-    await expect(page.getByText(/失败|not found|not_found/i).first()).toBeVisible({ timeout: 5000 });
+    // 错误以 .text-danger 容器渲染（文案随后端 message 变化）
+    await expect(page.locator('.text-danger').first()).toBeVisible({ timeout: 5000 });
   });
 
   test('充值金额选择切换', async ({ page }) => {
     await page.goto('/billing');
-    // 选 ¥200 - buttons contain ¥50/¥100/¥200/¥500
-    await page.getByRole('button', { name: /¥200/ }).first().click();
+    // 按钮内含多个 div（$200 + 小字 cents + label），用 CSS has-text 子串匹配。
+    await page.locator('button:has-text("$200")').first().click();
     // 不崩即通过（视觉验证在 visual regression 里）
   });
 });

@@ -1,145 +1,136 @@
 // global-setup.ts —— Playwright 全局启动钩子。
 //
-// 流程：
-//  1. 清理旧 SQLite 文件
-//  2. 启动 upstream-mock（:18090）
-//  3. 启动 backend server（:18080，SQLite，关 OAuth/Stripe）
-//  4. 等 backend /healthz
-//  5. 运行 e2e-seed 插 admin/user/channel/prices
-//  6. 启动 web-user dev（:13000）
-//  7. 启动 web-admin dev（:13001）
-//  8. 等 user/admin 前端 ready
+// 工作流：
+//   1. 检测 backend /healthz 是否已就绪
+//      - 已就绪（dev.sh 在跑）→ 直接复用，仅 reseed
+//      - 未就绪 → 调 deploy/dev/dev.sh --backend-only 拉起 docker infra + backend
+//   2. 启动 web-user / web-admin 两个 Next.js dev（如果还没在跑）
+//   3. 等所有前端 ready
 //
 // 进程表放 globalThis，全局 teardown 用。
-import { mkdirSync, rmSync, existsSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { spawnSync } from 'node:child_process';
+import { resolve } from 'node:path';
 import type { FullConfig } from '@playwright/test';
+import { fetch as undiciFetch } from 'undici';
+import { PORTS, postgresDSN, URLS } from '../helpers/env';
 import { killAll, start, waitFor } from './process-manager';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const ROOT = resolve(__dirname, '..', '..');
-
+// 当 e2e 通过 `bazel run //e2e:test` 启动时，cwd 在 bazel runfiles 副本，
+// 但 spawn bazel 必须从源码树。bazel run 会设置 BUILD_WORKSPACE_DIRECTORY 指向源码根。
+// 直接调（pnpm/node）时无此变量，fallback 到 cwd（开发者通常在仓库根跑）。
+const ROOT = process.env.BUILD_WORKSPACE_DIRECTORY ?? process.cwd();
 // 为 teardown 暴露。
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 (globalThis as any).__nexus_teardown = killAll;
 
-export default async function globalSetup(_config: FullConfig): Promise<void> {
-  const BACKEND_PORT = 18080;
-  const WEB_USER_PORT = 13000;
-  const WEB_ADMIN_PORT = 13001;
-  const UPSTREAM_PORT = 18090;
-  const DB_DIR = resolve(ROOT, 'e2e', '.tmp');
-  const DB_PATH = resolve(DB_DIR, 'nexus-e2e.db');
-  mkdirSync(DB_DIR, { recursive: true });
-
-  // 清旧 DB
-  for (const suffix of ['', '-journal', '-wal', '-shm']) {
-    const p = DB_PATH + suffix;
-    if (existsSync(p)) rmSync(p);
+async function isHealthy(url: string): Promise<boolean> {
+  try {
+    const res = await undiciFetch(url, { method: 'GET' });
+    return res.ok;
+  } catch {
+    return false;
   }
+}
 
-  // 1) upstream mock
-  start({
-    cwd: ROOT,
-    cmd: 'node',
-    args: ['e2e/scripts/upstream-mock.mjs'],
-    env: { UPSTREAM_PORT: String(UPSTREAM_PORT) },
-    label: 'upstream',
-  });
-  await waitFor(`http://127.0.0.1:${UPSTREAM_PORT}/healthz`, 10_000);
-
-  // 2) backend server
-  // 通过环境变量禁用 OAuth/Stripe；SQLite 用上面的文件路径。
-  start({
-    cwd: resolve(ROOT, 'backend'),
-    cmd: 'go',
-    args: ['run', './cmd/server'],
-    env: {
-      NEXUSAPI_APP_ENV: 'development',
-      NEXUSAPI_SERVER_HOST: '127.0.0.1',
-      NEXUSAPI_SERVER_PORT: String(BACKEND_PORT),
-      NEXUSAPI_DATABASE_DRIVER: 'sqlite',
-      NEXUSAPI_DATABASE_DSN: DB_PATH,
-      NEXUSAPI_LOG_LEVEL: 'info',
-      NEXUSAPI_LOG_FORMAT: 'console',
-      // 不启 redis；Server 支持 REDIS_ADDR 为空时走内存降级
-      NEXUSAPI_REDIS_ADDR: '',
-      NEXUSAPI_SECURITY_ENCRYPTION_KEY: '', // 使用 Noop cipher
-      NEXUSAPI_SITE_BASE_URL: `http://127.0.0.1:${WEB_USER_PORT}`,
-      NEXUSAPI_AUTH_SESSION_TTL_HOURS: '24',
-      NEXUSAPI_RELAY_FAILOVER_ATTEMPTS: '1',
-      // OAuth 启用 github + google，URL 全部重定向到 upstream-mock
-      NEXUSAPI_OAUTH_POST_LOGIN_URL: `http://127.0.0.1:${WEB_USER_PORT}/dashboard`,
-      NEXUSAPI_OAUTH_GITHUB_ENABLED: 'true',
-      NEXUSAPI_OAUTH_GITHUB_CLIENT_ID: 'mock-gh-id',
-      NEXUSAPI_OAUTH_GITHUB_CLIENT_SECRET: 'mock-gh-secret',
-      NEXUSAPI_OAUTH_GITHUB_AUTHORIZE_URL: `http://127.0.0.1:${UPSTREAM_PORT}/oauth/github/authorize`,
-      NEXUSAPI_OAUTH_GITHUB_TOKEN_URL: `http://127.0.0.1:${UPSTREAM_PORT}/oauth/github/token`,
-      NEXUSAPI_OAUTH_GITHUB_API_BASE: `http://127.0.0.1:${UPSTREAM_PORT}`,
-      NEXUSAPI_OAUTH_GOOGLE_ENABLED: 'true',
-      NEXUSAPI_OAUTH_GOOGLE_CLIENT_ID: 'mock-gg-id',
-      NEXUSAPI_OAUTH_GOOGLE_CLIENT_SECRET: 'mock-gg-secret',
-      NEXUSAPI_OAUTH_GOOGLE_AUTHORIZE_URL: `http://127.0.0.1:${UPSTREAM_PORT}/oauth/google/authorize`,
-      NEXUSAPI_OAUTH_GOOGLE_TOKEN_URL: `http://127.0.0.1:${UPSTREAM_PORT}/oauth/google/token`,
-      NEXUSAPI_OAUTH_GOOGLE_API_BASE: `http://127.0.0.1:${UPSTREAM_PORT}/oauth/google/userinfo`,
-      // 限流默认设低一点，好触发 429 测试
-      NEXUSAPI_RATE_LIMIT_DEFAULT_RPM: '1000',
-      NEXUSAPI_RATE_LIMIT_DEFAULT_TPM: '0',
-      // Stripe 启用（webhook secret 固定，签名可本地复现）
-      NEXUSAPI_PAYMENT_STRIPE_ENABLED: 'true',
-      NEXUSAPI_PAYMENT_STRIPE_SECRET_KEY: 'sk_test_e2e_fake',
-      NEXUSAPI_PAYMENT_STRIPE_WEBHOOK_SECRET: 'whsec_e2e_fixed',
-      NEXUSAPI_PAYMENT_STRIPE_SUCCESS_URL: `http://127.0.0.1:${WEB_USER_PORT}/billing?paid=1`,
-      NEXUSAPI_PAYMENT_STRIPE_CANCEL_URL: `http://127.0.0.1:${WEB_USER_PORT}/billing?canceled=1`,
-      NEXUSAPI_PAYMENT_STRIPE_PRODUCT_NAME: 'NexusAPI E2E Credits',
-      NEXUSAPI_PAYMENT_STRIPE_API_BASE: `http://127.0.0.1:${UPSTREAM_PORT}`,
-      NEXUSAPI_PAYMENT_MICRO_PER_CENT: '10000',
-    },
-    label: 'backend',
-  });
-  await waitFor(`http://127.0.0.1:${BACKEND_PORT}/healthz`, 60_000);
-
-  // 3) e2e-seed
-  const seed = start({
-    cwd: resolve(ROOT, 'backend'),
-    cmd: 'go',
-    args: [
+// reseed 直接调 `bazel run //backend/cmd/e2e-seed`，--reset 清空业务表再灌种子。
+function reseed(): void {
+  const r = spawnSync(
+    'bazel',
+    [
       'run',
-      './cmd/e2e-seed',
-      '--sqlite',
-      DB_PATH,
+      '//backend/cmd/e2e-seed',
+      '--',
+      '--postgres-dsn',
+      postgresDSN(),
       '--upstream-url',
-      `http://127.0.0.1:${UPSTREAM_PORT}`,
+      URLS.upstream,
       '--reset',
     ],
-    label: 'seed',
+    { cwd: ROOT, stdio: 'inherit' },
+  );
+  if (r.status !== 0) {
+    throw new Error(`bazel run //backend/cmd/e2e-seed failed with status=${r.status}`);
+  }
+}
+
+// killPortListeners 清掉占某端口的进程。用于回收残留前端：
+// 之前 e2e 跑过留下的 next dev 可能 listen 着但不响应（HMR/编译卡死），
+// 探活失败但 spawn 新前端会 EADDRINUSE，所以先杀掉端口持有者。
+function killPortListeners(port: number): void {
+  spawnSync('bash', ['-c', `lsof -nP -iTCP:${port} -sTCP:LISTEN -t 2>/dev/null | xargs -r kill -9 2>/dev/null || true`], {
+    stdio: 'ignore',
   });
-  await new Promise<void>((resolvePromise, reject) => {
-    seed.on('exit', (code) => {
-      if (code === 0) resolvePromise();
-      else reject(new Error(`seed exited ${code}`));
+}
+
+async function ensureFrontendDown(port: number, healthUrl: string): Promise<void> {
+  if (await isHealthy(healthUrl)) return; // 复用健康进程
+  killPortListeners(port);
+}
+
+export default async function globalSetup(_config: FullConfig): Promise<void> {
+  const backendUrl = `http://127.0.0.1:${PORTS.backend}/healthz`;
+  const userUrl = `http://127.0.0.1:${PORTS.webUser}/login`;
+  const adminUrl = `http://127.0.0.1:${PORTS.webAdmin}/login`;
+
+  // 1) backend（含 docker infra）
+  if (await isHealthy(backendUrl)) {
+    process.stderr.write(`[e2e] backend 已就绪（dev 在跑），跳过启动，仅 reseed\n`);
+    reseed();
+  } else {
+    process.stderr.write(
+      `[e2e] backend 未就绪，调 bazel run //deploy/dev:backend_only 拉起 infra+backend\n`,
+    );
+    const r = spawnSync('bazel', ['run', '//deploy/dev:backend_only'], {
+      cwd: ROOT,
+      stdio: 'inherit',
     });
-  });
+    if (r.status !== 0) {
+      throw new Error(`bazel run //deploy/dev:backend_only failed with status=${r.status}`);
+    }
+    // 该 target 已经跑过 seed，无需再 reseed
+  }
 
-  // 4) web-user / web-admin
-  start({
-    cwd: resolve(ROOT, 'web-user'),
-    cmd: 'pnpm',
-    args: ['exec', 'next', 'dev', '-p', String(WEB_USER_PORT)],
-    env: { NEXUSAPI_BACKEND_URL: `http://127.0.0.1:${BACKEND_PORT}` },
-    label: 'web-user',
-  });
-  start({
-    cwd: resolve(ROOT, 'web-admin'),
-    cmd: 'pnpm',
-    args: ['exec', 'next', 'dev', '-p', String(WEB_ADMIN_PORT)],
-    env: { NEXUSAPI_BACKEND_URL: `http://127.0.0.1:${BACKEND_PORT}` },
-    label: 'web-admin',
-  });
+  // 2) web-user / web-admin —— 探活，没起就 spawn（走 bazel run，与 dev.sh 一致）
+  //
+  // 外层 `bazel run //e2e:test` 设了：
+  //   - BUILD_WORKING_DIRECTORY=<e2e/>
+  //   - JS_BINARY__CHDIR=e2e
+  // 这两个变量会被子 bazel 调用的 launcher 继承。其中 JS_BINARY__CHDIR 必须
+  // 改为目标包的相对路径（否则 next 启动在仓库根，读不到 web-user/next.config.ts，
+  // /api 转发 rewrites 失效），BUILD_WORKING_DIRECTORY 改为源码根方便 launcher 内 cd。
+  const userEnv = {
+    NEXUSAPI_BACKEND_URL: `http://127.0.0.1:${PORTS.backend}`,
+    BUILD_WORKING_DIRECTORY: ROOT,
+    JS_BINARY__CHDIR: 'web-user',
+  };
+  const adminEnv = {
+    NEXUSAPI_BACKEND_URL: `http://127.0.0.1:${PORTS.backend}`,
+    BUILD_WORKING_DIRECTORY: ROOT,
+    JS_BINARY__CHDIR: 'web-admin',
+  };
 
-  await Promise.all([
-    waitFor(`http://127.0.0.1:${WEB_USER_PORT}/login`, 120_000),
-    waitFor(`http://127.0.0.1:${WEB_ADMIN_PORT}/login`, 120_000),
-  ]);
+  // 上一轮残留可能 listen 着但不响应（HMR 卡死）：探活不通 → 强杀回收端口。
+  await ensureFrontendDown(PORTS.webUser, userUrl);
+  await ensureFrontendDown(PORTS.webAdmin, adminUrl);
+
+  if (!(await isHealthy(userUrl))) {
+    start({
+      cwd: ROOT,
+      cmd: 'bazel',
+      args: ['run', '//web-user:next_dev', '--', '--port', String(PORTS.webUser)],
+      env: userEnv,
+      label: 'web-user',
+    });
+  }
+  if (!(await isHealthy(adminUrl))) {
+    start({
+      cwd: ROOT,
+      cmd: 'bazel',
+      args: ['run', '//web-admin:next_dev', '--', '--port', String(PORTS.webAdmin)],
+      env: adminEnv,
+      label: 'web-admin',
+    });
+  }
+
+  await Promise.all([waitFor(userUrl, 120_000), waitFor(adminUrl, 120_000)]);
 }

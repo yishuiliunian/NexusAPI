@@ -9,22 +9,34 @@
     "pnpm": ">=9.0.0"
   },
   "scripts": {
-    "dev": "node scripts/dev-stack.mjs",
-    "dev:reset": "node scripts/dev-stack.mjs --reset",
-    "dev:user-only": "node scripts/dev-stack.mjs --no-admin",
-    "dev:user": "pnpm --filter @nexusapi/web-user dev",
-    "dev:admin": "pnpm --filter @nexusapi/web-admin dev",
+    "dev": "bazel run //deploy/dev:up",
+    "dev:backend": "bazel run //deploy/dev:backend_only",
+    "dev:clean": "bazel run //deploy/dev:clean",
+    "dev:user": "bazel run //web-user:next_dev",
+    "dev:admin": "bazel run //web-admin:next_dev",
+    "dev:legacy": "node scripts/dev-stack.mjs",
+    "dev:legacy:reset": "node scripts/dev-stack.mjs --reset",
+    "e2e": "bazel run //e2e:test",
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
     "format": "prettier --write \"**/*.{ts,tsx,json,md,yaml}\"",
     "stop": "node scripts/stop-stack.mjs"
   },
-  "pnpm": {
-    "onlyBuiltDependencies": []
-  },
   "devDependencies": {
+    "@axe-core/playwright": "^4.10.2",
+    "@playwright/test": "1.50.1",
+    "@types/node": "22.10.2",
     "prettier": "^3.4.2",
-    "typescript": "5.7.3"
+    "typescript": "5.7.3",
+    "undici": "^6.21.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [],
+    "overrides": {
+      "@playwright/test": "1.50.1",
+      "playwright": "1.50.1",
+      "playwright-core": "1.50.1"
+    }
   }
 }
